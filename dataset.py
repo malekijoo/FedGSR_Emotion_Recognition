@@ -164,8 +164,8 @@ class CASE:
     def fed_process(self):
         print('making the DATASET federated')
 
-        # for i in range(self.NumberOfUsers):
-        for usr in range(10):
+        for usr in range(self.NumberOfUsers):
+        # for usr in range(10):
 
             gp_phy_df, gp_ann_df = self.process(usr=usr)
             sess_x, sess_y, sess_cwt = [], [], []
