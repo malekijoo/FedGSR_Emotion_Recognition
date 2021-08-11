@@ -48,8 +48,7 @@ class EmoRec:
     self.C = kwargs.get('C', self.x.shape[0])
     self.Num_Sess = kwargs.get('Num_Sess', self.x.shape[1])
 
-
-
+    print('In this run, we use a {}-based model with {} architecture.'.format(self.ml, self.arch))
 
 
     if self.arch == 'CENT':
@@ -60,9 +59,11 @@ class EmoRec:
       print('\nThe Number of Users is {}, The Number of sessions for each user is {}.'.format(self.Num_Usr,
                                                                                               self.Num_Sess))
       print('The Number of Users used for aggregation in the global model (C) is {} '.format(self.C))
-      self.model = [self._create_model() for num_usr in range((self.Num_Usr-1))]
-      # self.model = [self._create_model() for num_usr in range(3)] # this line will be deleted
 
+
+
+      # self.model = [self._create_model() for num_usr in range(3)] # this line will be deleted
+      self.model = [self._create_model() for num_usr in range((self.Num_Usr-1))]
       print('Number of models used for aggregating the global model is  {}.'.format(len(self.model)))
       self.global_model = self._create_model()
 
@@ -83,7 +84,6 @@ class EmoRec:
 
 
     dnn = dnn_model.DNN(self.ml, [input_1, input_2])
-    print('In this run, we use a {}-based model with {} architecture.'.format(self.ml, self.arch))
 
 
     if self.ml == 'CNN':
