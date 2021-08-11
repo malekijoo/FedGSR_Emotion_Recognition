@@ -2,6 +2,7 @@ import os
 import numpy as np
 import tensorflow as tf
 import pandas as pd
+import DnnModels as dnn_model
 import dataset as dt
 
 from tensorflow.keras.optimizers import Adam
@@ -14,7 +15,7 @@ pd.options.display.width = 0
 
 
 
-class DNN:
+class EmoRec:
 
   def __init__(self, kwargs):
 
@@ -33,10 +34,6 @@ class DNN:
     self.optimizer = kwargs.get('optimizer', Adam(self.lr))
     "TODO: WE CAN CONSIDER OTHER FEATURES SAME AS THE ABOVE FEATURES WITH SAME METHOD"
 
-
-    assert self.ml == 'CNN' or self.ml == 'LSTM'
-    print('In this run, we use a {}-based model with a {} architecture'.format(self.ml, self.arch))
-
     # Dataset class is called and built here.
     # The load_data() function gives us Phasic GSR (x),
     # features extracted by Continuous wavelet transform (cwt) from Phasic GSR,
@@ -44,7 +41,6 @@ class DNN:
     dataset = dt.CASE(self.phy_dir, self.ann_dir, self.arch)
     self.x, self.y, self.cwt = dataset.load_data()
     print('The Dataset is loaded.')
-    # print('Raw GSR shape: {},  Label shape: {}, cwt shape: {}'.format(self.x.shape, self.y.shape, self.cwt.shape))
 
 
     # self.NUM_USRS is the number of file in the dataset
@@ -74,20 +70,28 @@ class DNN:
 
   def _create_model(self):
 
+
     if self.gsr_only_flag:
       input_1 = Input(shape=(1000, 1), name="input_1")
       # input_2 = Input(shape=(50, 2,  1), name="input_2")
       input_2 = Input(shape=(1000, 20, 1), name="input_2")
+
     else:
       'TODO: it should be determinded how many features we are going to work on.'
       pass
 
-    if self.ml == 'CNN':
-      output1, output2 = self._cnn_model([input_1, input_2])
-    elif self.ml == 'LSTM':
-      'TODO: We should compelte the LSTM model'
-      pass
+    dnn = dnn_model.DNN(self.ml, [input_1, input_2])
 
+
+
+    if self.ml == 'CNN':
+      output1, output2 = dnn.cnn()
+    elif self.ml == 'LSTM':
+      output1, output2 = dnn.lstm()
+    elif self.ml == 'stackedLSTM':
+      output1, output2 = dnn.stacked_lstm()
+    else:
+      pass
 
     losses = {'arousal': 'binary_crossentropy',
               'valence': 'binary_crossentropy',}
@@ -105,54 +109,7 @@ class DNN:
     return model
 
 
-  def _cnn_model(self, _input):
 
-    # print('\n    building    **** CNN ****   \n\n ')
-    # print('shapes are ')
-    # print(_input[0].shape, _input[1].shape, '_input[2].shape')
-
-    l1 = Conv1D(32, kernel_size=(5), padding='same', strides=1, activation='relu')(_input[0])
-    # l2 = Conv1D(64, kernel_size=(5), padding='same', strides=1, activation='relu')(l1)
-    # print('first input ', l1.shape, l2.shape)
-
-    l3 = Conv2D(16, kernel_size=5, padding='same', strides=1, activation='relu')(_input[1])
-    # MaxPooling2D()
-    # l4 = Conv2D(32, kernel_size=5, padding='same', strides=1, activation='relu')(l3)
-    # print('second input ', l3.shape, l4.shape)
-
-    # l5 = Conv2D(16, kernel_size=5, padding='same', strides=1, activation='relu')(_input[2])
-    # l6 = Conv2D(32, kernel_size=5, padding='same', strides=1, activation='relu')(_input[2])
-    # print('third input ', l5.shape, l6.shape)
-
-    # l3 = Conv1D(64, kernel_size=(5), padding='same', strides=2, activation='relu')(l2)
-    # print(l3.shape)
-    #
-    # l4 = Conv1D(128, kernel_size=(5), padding='same', strides=2, activation='relu')(l3)
-    # print(l4.shape)
-    #
-    # l5= Conv1D(128, kernel_size=(5), padding='same', strides=2, activation='relu')(l4)
-    # print(l5.shape)
-    l1 = Flatten()(l1)
-    l3 = Flatten()(l3)
-    # l6 = Flatten()(l6)
-    # print('flattened ', l1.shape, l3.shape, 'l6.shape')
-    conc_l = Concatenate()([l1, l3])
-
-
-    l7 = Dense(units=128, activation='relu')(conc_l)
-    l8 = Dense(units=64, activation='relu')(l7)
-
-    out1 = Dense(units=1, activation='sigmoid', name='arousal')(l8)
-    out2 = Dense(units=1, activation='sigmoid', name='valence')(l8)
-
-    return out1, out2
-
-  def LSTM(self):
-    'TODO: We are going to design an LSTM model.'
-    pass
-
-  def RNN(self):
-    pass
 
   @staticmethod
   def get_average_weights(models):
@@ -193,7 +150,7 @@ class DNN:
     :param GE: GE is showing either Global Epochs in FED architecture or
                the number of Epochs in CENT architecture.
     :param LE: The number of Local Epochs each client makes over its local dataset.
-               It is used just in the FED architecture.
+               It is used just for the FED architecture.
     :return: None
 
     """
@@ -211,6 +168,7 @@ class DNN:
 
 
     elif self.arch == 'FED':
+
       test_x, test_y, test_cwt = self.stack_up(self.Num_Usr-1)
 
       for ge in range(GE):
@@ -263,7 +221,7 @@ if __name__ == '__main__':
           'C': 2}
 
 
-  obj = DNN(attr)
+  obj = EmoRec(attr)
   obj.train(GE=5, LE=3)
 
 
