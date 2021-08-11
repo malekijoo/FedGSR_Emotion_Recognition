@@ -83,7 +83,7 @@ class EmoRec:
 
 
     dnn = dnn_model.DNN(self.ml, [input_1, input_2])
-    print('In this run, we use a {}-based model with {} architecture.'.format(self.ml_name, self.arch))
+    print('In this run, we use a {}-based model with {} architecture.'.format(self.ml, self.arch))
 
 
     if self.ml == 'CNN':
