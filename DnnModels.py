@@ -17,8 +17,6 @@ class DNN:
       self.ml_name = model_name
       self._input = input
 
-      print('In this run, we use a {}-based model.'.format(self.ml_name))
-
     def cnn(self):
 
         l11 = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[0])
