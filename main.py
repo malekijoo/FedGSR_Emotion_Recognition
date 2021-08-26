@@ -1,15 +1,18 @@
-import os
 import numpy as np
-import tensorflow as tf
 import pandas as pd
-import DnnModels as dnn_model
 import dataset as dt
+import tensorflow as tf
+import DnnModels as dnn_model
 
 from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.layers import Input, Conv1D, Conv2D, MaxPooling2D, Dropout
-from tensorflow.keras.layers import Flatten, Dense, BatchNormalization, Concatenate
+from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
 import matplotlib.pyplot as plt
+
+
+from sklearn.metrics import classification_report
+from sklearn.metrics import roc_auc_score
+from sklearn.metrics import confusion_matrix
 
 pd.options.display.width = 0
 
@@ -25,7 +28,7 @@ class EmoRec:
     self.phy_dir = kwargs.get('phy_dir', './')
     self.ann_dir = kwargs.get('ann_dir', './')
     self.arch = kwargs.get('architecture', 'CENT')
-    self.ml = kwargs.get('model', 'CNN').upper()
+    self.ml = kwargs.get('model', 'CNN')
     self.decompose_flag = kwargs.get('decompose', False)
     self.gsr_only_flag = kwargs.get('gsr_only', False)
     self.minmax = kwargs.get('minmax_norm', False)
@@ -43,7 +46,7 @@ class EmoRec:
     print('The Dataset is loaded.')
 
 
-    # self.NUM_USRS is the number of file in the dataset
+    # self.Num_Usr is the number of file in the dataset
     self.Num_Usr = self.x.shape[0]
     self.C = kwargs.get('C', self.x.shape[0])
     self.Num_Sess = kwargs.get('Num_Sess', self.x.shape[1])
@@ -77,6 +80,10 @@ class EmoRec:
       # input_2 = Input(shape=(50, 2,  1), name="input_2")
       input_2 = Input(shape=(1000, 20, 1), name="input_2")
 
+      if 'LSTM' in self.ml:
+        input_2 = Input(shape=(1000, 20), name="input_2")
+
+
     else:
       'TODO: it should be determinded how many features we are going to work on.'
       pass
@@ -87,13 +94,18 @@ class EmoRec:
 
 
     if self.ml == 'CNN':
-      output1, output2 = dnn.cnn()
+      output1, output2 = dnn.CNN()
     elif self.ml == 'LSTM':
-      output1, output2 = dnn.lstm()
-    elif self.ml == 'stackedLSTM':
-      output1, output2 = dnn.stacked_lstm()
-    else:
-      pass
+      output1, output2 = dnn.LSTM()
+    elif self.ml == 'conv_LSTM':
+      output1, output2 = dnn.conv_LSTM()
+    elif self.ml == 'stacked_LSTM':
+      output1, output2 = dnn.stacked_LSTM()
+    elif self.ml == 'bi_LSTM':
+      output1, output2 = dnn.bi_LSTM()
+    elif self.ml == 'unsequenced_LSTM':
+      output1, output2 = dnn.unsequenced_LSTM()
+
 
     losses = {'arousal': 'binary_crossentropy',
               'valence': 'binary_crossentropy',}
@@ -136,12 +148,14 @@ class EmoRec:
     :return: return sequential expanded-dimension array of x, y, cwt
 
     """
-
     x = np.concatenate([self.x[ith_usr][i] for i in range(self.Num_Sess)])
     y = np.concatenate([self.y[ith_usr][i] for i in range(self.Num_Sess)])
     cwt = np.concatenate([self.cwt[ith_usr][i] for i in range(self.Num_Sess)])
 
-    return np.expand_dims(x, axis=-1), np.expand_dims(y, axis=-1), np.expand_dims(cwt, axis=-1)
+    if 'LSTM' not in self.ml:
+      cwt = np.expand_dims(cwt, axis=-1)
+
+    return np.expand_dims(x, axis=-1), np.expand_dims(y, axis=-1), cwt
 
 
   def train(self, B=32, GE=10, LE=1):
@@ -162,19 +176,28 @@ class EmoRec:
 
       self.x = np.expand_dims(self.x, axis=-1)
       self.y = np.expand_dims(self.y, axis=-1)
-      self.cwt = np.expand_dims(self.cwt, axis=-1)
+      if 'LSTM' not in self.ml:
+        self.cwt = np.expand_dims(self.cwt, axis=-1)
 
-      self.model.fit(x=[self.x, self.cwt], y={"arousal": self.y[:, 0], "valence": self.y[:, 1]},
+      assert self.x.shape[0] == self.y.shape[0] == self.cwt.shape[0]
+
+      tr_te_rate = round(0.9 * self.x.shape[0])
+      self.x_tr, self.y_tr, self.cwt_tr = self.x[:tr_te_rate], self.y[:tr_te_rate], self.cwt[:tr_te_rate]
+      self.x_te, self.y_te, self.cwt_te = self.x[tr_te_rate:], self.y[tr_te_rate:], self.cwt[tr_te_rate:]
+
+
+
+      self.model.fit(x=[self.x_tr, self.cwt_tr], y={"arousal": self.y_tr[:, 0], "valence": self.y_tr[:, 1]},
                      batch_size=B, epochs=GE, verbose=1)
 
 
 
     elif self.arch == 'FED':
+      test_user = self.Num_Usr-1 # I-th number of users in row that will be used for testing phase.
 
-      test_x, test_y, test_cwt = self.stack_up(self.Num_Usr-1)
+      self.x_te, self.y_te, self.cwt_te = self.stack_up(test_user)
 
       for ge in range(GE):
-
         _ = [model.set_weights(self.global_model.get_weights()) for model in self.model]
 
         for ith in range(len(self.model)):
@@ -189,11 +212,56 @@ class EmoRec:
         self.global_model.set_weights(self.get_average_weights(rand_models_for_global_avg))
 
         print('\nGlobal Epoch {} .'.format(ge))
-        results = self.global_model.evaluate(x=[test_x, test_cwt],
-                                             y={"arousal": test_y[:, 0], "valence": test_y[:, 1]},
+        results = self.global_model.evaluate(x=[self.x_te, self.cwt_te],
+                                             y={"arousal": self.y_te[:, 0],
+                                                "valence": self.y_te[:, 1]},
                                              batch_size=B)
 
 
+  def test(self, B=32):
+    """
+    This function tests the model and print the confusion matrix
+    and classification report based on the prediction of the
+    trained model.
+
+    :param B: Batch Size
+
+    """
+    print('\nTesting Phase is starting. The result and confusion matrix will be shown here')
+
+    if self.arch == 'CENT':
+      trained_model = self.model
+
+    elif self.arch == 'FED':
+      trained_model = self.global_model
+
+    x, y, cwt = self.x_te, self.y_te, self.cwt_te
+    # print('shape x, y, cwt', self.x_te.shape, self.y_te.shape, self.cwt_te.shape)
+
+
+    y_hat = trained_model.predict(x=[x, cwt], batch_size=B)
+    # print(type(y), y.shape, np.squeeze(y).shape, type(y_hat), len(y_hat), y_hat[0].shape)
+
+    # Arousal
+    y_, yhat = np.squeeze(y[:, 0]), np.squeeze(y_hat[0])
+    yhat = (yhat > 0.5001).astype(int)
+    conf_mat_arousal = confusion_matrix(y_.tolist(), yhat.tolist())
+    report_arousal = classification_report(y_.tolist(), yhat.tolist())
+
+
+    # Valence
+    y_, yhat = np.squeeze(y[:, 1]), np.squeeze(y_hat[1])
+    yhat = (yhat > 0.5001).astype(int)
+    conf_mat_valence = confusion_matrix(y_.tolist(), yhat.tolist())
+    report_valence = classification_report(y_.tolist(), yhat.tolist())
+
+    print('\nReport of Arousal')
+    print(report_arousal)
+    print(conf_mat_arousal)
+
+    print('\nReport of Valence')
+    print(report_valence)
+    print(conf_mat_valence)
 
 
 
@@ -224,7 +292,8 @@ if __name__ == '__main__':
 
 
   obj = EmoRec(attr)
-  obj.train(GE=5, LE=3)
+  obj.train(GE=1, LE=1)
+  obj.test()
 
 
 

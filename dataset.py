@@ -28,34 +28,57 @@ class CASE:
         self.x, self.y, self.cwt = [], [], []
 
 
+
     @staticmethod
     def read(pathdir, f_extention):
         return np.array(tf.io.gfile.glob(str(pathdir) + f_extention))
 
     @staticmethod
-    def dataframe(address, columns):
+    def read_dataframe(address, columns):
         return pd.read_csv(address, usecols=columns, index_col=False)
 
     #
     @staticmethod
-    def mapping(row):
+    def inc_dec_map(label):
         """Mapping function helps us map the label to several predifined classes"""
 
-        if row['arousal'] >= 0 and row["valence"] >= 0:  # HIGH arousal - HIGH valence (HH)
+        valence = label['valence'].diff().mean()
+        arousal = label['arousal'].diff().mean()
+
+        if arousal >= 0 and valence >= 0:  # HIGH arousal - HIGH valence (HH)
             return [1, 1]
 
-        elif row['arousal'] >= 0 and row["valence"] < 0:  # HIGH arousal - LOW valence (HL)
+        elif arousal >= 0 and valence < 0:  # HIGH arousal - LOW valence (HL)
             return [1, 0]
 
-        elif row['arousal'] < 0 and row["valence"] >= 0:  # LOW arousal - HIGH valence (LH)
+        elif arousal < 0 and valence >= 0:  # LOW arousal - HIGH valence (LH)
             return [0, 1]
 
-        elif row['arousal'] < 0 and row["valence"] < 0:  # LOW arousal - LOW valence (LL)
+        elif arousal < 0 and valence < 0:  # LOW arousal - LOW valence (LL)
+            return [0, 0]
+
+    @staticmethod
+    def mean_interval_mapping(label):
+        """Mapping function helps us map the label to several predifined classes"""
+
+        valence = label['valence'].mean()
+        arousal = label['arousal'].mean()
+
+        if arousal >= 5 and valence >= 5:  # HIGH arousal - HIGH valence (HH)
+            return [1, 1]
+
+        elif arousal >= 5 and valence < 5:  # HIGH arousal - LOW valence (HL)
+            return [1, 0]
+
+        elif arousal < 5 and valence >= 5:  # LOW arousal - HIGH valence (LH)
+            return [0, 1]
+
+        elif arousal < 5 and valence < 5:  # LOW arousal - LOW valence (LL)
             return [0, 0]
 
     @staticmethod
     def minmax__norm(raw_signal):
-        return ((raw_signal - raw_signal.min()) / (raw_signal.max() - raw_signal.min()))
+        return (raw_signal - raw_signal.min()) / (raw_signal.max() - raw_signal.min())
 
     @staticmethod
     def decompose(raws_signal):
@@ -66,7 +89,7 @@ class CASE:
     @staticmethod
     def feature_extraction(sample):
         widths = np.arange(1, 21)
-        return signal.cwt(sample['gsr_phasic'], signal.ricker, widths=widths).T  # shape (20, 500)
+        return signal.cwt(sample['gsr_phasic'], signal.ricker, widths=widths).T  # shape (20, len(sample)])
 
 
     @staticmethod
@@ -90,21 +113,25 @@ class CASE:
 
     @staticmethod
     def session_chunk(gp_sess_ann_df, gp_sess_phy_df):
+
+        interval_length = 20
+
+
         temp_x, temp_y, temp_cwt = [], [], []
         str_p = gp_sess_ann_df['jstime'].iloc[0]
-        #
-        for k in range(20, gp_sess_ann_df.shape[0], 20):
+
+        for k in range(interval_length, gp_sess_ann_df.shape[0], interval_length):
             end_p = gp_sess_ann_df['jstime'].iloc[k]
             label = gp_sess_ann_df[(gp_sess_ann_df['jstime'] <= end_p) & (gp_sess_ann_df['jstime'] > str_p)]
-            valence = label['valence'].diff().mean()
-            arousal = label['arousal'].diff().mean()
-            sample = gp_sess_phy_df[(gp_sess_phy_df['daqtime'] <= end_p) & (gp_sess_phy_df['daqtime'] > str_p)]
 
-            clss = CASE.mapping(row={'arousal': arousal, 'valence': valence})
+            # clss = CASE.inc_dec_map(label)
+            clss = CASE.mean_interval_mapping(label)
+
+            sample = gp_sess_phy_df[(gp_sess_phy_df['daqtime'] <= end_p) & (gp_sess_phy_df['daqtime'] > str_p)]
             cwt = CASE.feature_extraction(sample=sample)
             str_p = gp_sess_ann_df['jstime'].iloc[k]
 
-            if sample.shape[0] == 1000:
+            if sample.shape[0] == (interval_length*50): # interval_length * 50(each label cover 50 value in sample data)
                 temp_x.append(sample['gsr_phasic'].to_numpy())
                 temp_y.append(np.array(clss))
                 temp_cwt.append(cwt)
@@ -121,8 +148,8 @@ class CASE:
         tusrname = self.ann_add[usr].split('/')[-1].split('.')[0]
         assert username == tusrname
 
-        self.phy_df = CASE.dataframe(self.phy_add[usr], phy_col)
-        self.ann_df = CASE.dataframe(self.ann_add[usr], ann_col)
+        self.phy_df = CASE.read_dataframe(self.phy_add[usr], phy_col)
+        self.ann_df = CASE.read_dataframe(self.ann_add[usr], ann_col)
 
         # min max normalization and decomposition are applied on each person's GSR signal
         self.phy_df['gsr'] = CASE.minmax__norm(self.phy_df['gsr'])
@@ -165,7 +192,7 @@ class CASE:
         print('making the DATASET federated')
 
         for usr in range(self.NumberOfUsers):
-        # for usr in range(10):
+            # for usr in range(10):
 
             gp_phy_df, gp_ann_df = self.process(usr=usr)
             sess_x, sess_y, sess_cwt = [], [], []
@@ -194,14 +221,14 @@ class CASE:
             if not os.path.isdir('./dataset/CENT/'):
                 os.makedirs('./dataset/CENT/', exist_ok=True)
             self.cent_process()
-            print('building DATASET duration time ', datetime.now()-start_time)
+            print('building DATASET consumed time ', datetime.now()-start_time)
 
         elif self.arch == 'FED':
             print('\n Federated Architecture DATASET')
             if not os.path.isdir('./dataset/FED/'):
                 os.makedirs('./dataset/FED/', exist_ok=True)
             self.fed_process()
-            print('building DATASET duration time ', datetime.now()-start_time)
+            print('building DATASET consumed time ', datetime.now()-start_time)
 
             # self.fed_process()
 
@@ -225,10 +252,10 @@ class CASE:
         y = np.load('./dataset/{}/y.npy'.format(self.arch), allow_pickle=True)
         cwt = np.load('./dataset/{}/cwt.npy'.format(self.arch), allow_pickle=True)
 
-        if self.arch == 'CENT':
-            x = np.concatenate(x, np.load('./dataset/CENT/x1.npy', allow_pickle=True), axis=0)
-            y = np.concatenate(y, np.load('./dataset/CENT/y1.npy', allow_pickle=True), axis=0)
-            cwt = np.concatenate(cwt, np.load('./dataset/CENT/cwt1.npy', allow_pickle=True), axis=0)
+        # if self.arch == 'CENT':
+        #     x = np.concatenate(x, np.load('./dataset/CENT/x1.npy', allow_pickle=True), axis=0)
+        #     y = np.concatenate(y, np.load('./dataset/CENT/y1.npy', allow_pickle=True), axis=0)
+        #     cwt = np.concatenate(cwt, np.load('./dataset/CENT/cwt1.npy', allow_pickle=True), axis=0)
 
 
         return x, y, cwt
