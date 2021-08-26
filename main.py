@@ -268,8 +268,8 @@ class EmoRec:
 if __name__ == '__main__':
   print('Starting ... \n')
 
-  annotation_dir = '/Users/amir/Desktop/DR/GSR/CASE_dataset/CASE_dataset/interpolated/annotations/'  # the directory of annotations
-  physiological_dir = '/Users/amir/Desktop/DR/GSR/CASE_dataset/CASE_dataset/interpolated/physiological/'  # the directory fo physiological signals
+  annotation_dir = '/CASE_dataset/CASE_dataset/interpolated/annotations/'  # the directory of annotations
+  physiological_dir = '/CASE_dataset/CASE_dataset/interpolated/physiological/'  # the directory fo physiological signals
 
   # attr = {'phy_dir': physiological_dir,
   #         'ann_dir': annotation_dir,
