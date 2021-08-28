@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 
-
 import neurokit2 as nk
 import scipy.signal as signal
 
@@ -16,7 +15,7 @@ warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
 
 
-class CASE:
+class CASE():
 
     def __init__(self, phy_dir, ann_dir, arch='CENT'):
         print('\nBuilding the DATASET. ')
@@ -26,6 +25,7 @@ class CASE:
         self.NumberOfUsers = len(self.phy_add)
         self.arch = arch
         self.x, self.y, self.cwt = [], [], []
+
 
 
 
@@ -144,8 +144,10 @@ class CASE:
         phy_col = ['daqtime', 'gsr', 'video']
         ann_col = ['jstime', 'valence', 'arousal', 'video']
 
+
         username = self.phy_add[usr].split('/')[-1].split('.')[0]
         tusrname = self.ann_add[usr].split('/')[-1].split('.')[0]
+
         assert username == tusrname
 
         self.phy_df = CASE.read_dataframe(self.phy_add[usr], phy_col)
@@ -162,7 +164,6 @@ class CASE:
 
 
     def cent_process(self):
-
         for usr in range(self.NumberOfUsers):
             # for i in range(5):
 
@@ -175,9 +176,9 @@ class CASE:
                 x, y, cwt = CASE.session_chunk(gp_sess_ann_df=gp_sess_ann_df, gp_sess_phy_df=gp_sess_phy_df)
                 self.x.append(x), self.y.append(y), self.cwt.append(cwt)
 
-            self.x = np.array(self.x)
-            self.y = np.array(self.y)
-            self.cwt = np.array(self.cwt)
+        self.x = np.array(self.x)
+        self.y = np.array(self.y)
+        self.cwt = np.array(self.cwt)
 
     ###############################################################################################################
     ###############################################################################################################
@@ -216,19 +217,20 @@ class CASE:
 
     def save_dataset(self):
         start_time = datetime.now()
+
         if self.arch == 'CENT':
             print('\n Centralized Architecture DATASET')
             if not os.path.isdir('./dataset/CENT/'):
                 os.makedirs('./dataset/CENT/', exist_ok=True)
             self.cent_process()
-            print('building DATASET consumed time ', datetime.now()-start_time)
+            print('building DATASET time ==', datetime.now()-start_time)
 
         elif self.arch == 'FED':
             print('\n Federated Architecture DATASET')
             if not os.path.isdir('./dataset/FED/'):
                 os.makedirs('./dataset/FED/', exist_ok=True)
             self.fed_process()
-            print('building DATASET consumed time ', datetime.now()-start_time)
+            print('building DATASET time ', datetime.now()-start_time)
 
             # self.fed_process()
 

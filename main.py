@@ -1,8 +1,12 @@
+import os
 import numpy as np
 import pandas as pd
 import dataset as dt
 import tensorflow as tf
-import DnnModels as dnn_model
+
+import utils as ut
+from DnnModels import DNN as DNN
+from DnnModels import LossHistory
 
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import Input
@@ -10,9 +14,7 @@ from tensorflow.keras.models import Model
 import matplotlib.pyplot as plt
 
 
-from sklearn.metrics import classification_report
-from sklearn.metrics import roc_auc_score
-from sklearn.metrics import confusion_matrix
+
 
 pd.options.display.width = 0
 
@@ -25,8 +27,9 @@ class EmoRec:
     print('The DNN class is building ....')
 
     # initializing values
-    self.phy_dir = kwargs.get('phy_dir', './')
-    self.ann_dir = kwargs.get('ann_dir', './')
+    self.phy_dir = kwargs.get('phy_dir', './GSR/CASE_dataset/CASE_dataset/interpolated/physiological/')
+    self.ann_dir = kwargs.get('ann_dir', './GSR/CASE_dataset/CASE_dataset/interpolated/annotations/')
+
     self.arch = kwargs.get('architecture', 'CENT')
     self.ml = kwargs.get('model', 'CNN')
     self.decompose_flag = kwargs.get('decompose', False)
@@ -42,13 +45,14 @@ class EmoRec:
     # features extracted by Continuous wavelet transform (cwt) from Phasic GSR,
     # and labels (y)
     dataset = dt.CASE(self.phy_dir, self.ann_dir, self.arch)
-    self.x, self.y, self.cwt = dataset.load_data()
+    self.x, self.y, self.cwt = dataset.load_data() # you can pass address here to the files.
     print('The Dataset is loaded.')
 
 
     # self.Num_Usr is the number of file in the dataset
     self.Num_Usr = self.x.shape[0]
-    self.C = kwargs.get('C', self.x.shape[0])
+    self.C = kwargs.get('C', self.x.shape[0]) # Number of selected model for Aggregating (Must be <29)
+    self.P = kwargs.get('P', self.x.shape[0]) # Number of selected model for training (Must be <29)
     self.Num_Sess = kwargs.get('Num_Sess', self.x.shape[1])
 
     print('In this run, we use a {}-based model with {} architecture.'.format(self.ml, self.arch))
@@ -90,7 +94,7 @@ class EmoRec:
 
 
 
-    dnn = dnn_model.DNN(self.ml, [input_1, input_2])
+    dnn = DNN(self.ml, [input_1, input_2])
 
 
     if self.ml == 'CNN':
@@ -172,6 +176,9 @@ class EmoRec:
     """
     print('\nTraining Phase is starting. It may take a while to train the model.')
 
+    history = LossHistory()
+
+
     if self.arch == 'CENT':
 
       self.x = np.expand_dims(self.x, axis=-1)
@@ -186,26 +193,32 @@ class EmoRec:
       self.x_te, self.y_te, self.cwt_te = self.x[tr_te_rate:], self.y[tr_te_rate:], self.cwt[tr_te_rate:]
 
 
-
       self.model.fit(x=[self.x_tr, self.cwt_tr], y={"arousal": self.y_tr[:, 0], "valence": self.y_tr[:, 1]},
-                     batch_size=B, epochs=GE, verbose=1)
+                     batch_size=B, epochs=GE, verbose=1, callbacks=[history])
 
 
 
     elif self.arch == 'FED':
+
       test_user = self.Num_Usr-1 # I-th number of users in row that will be used for testing phase.
 
       self.x_te, self.y_te, self.cwt_te = self.stack_up(test_user)
 
       for ge in range(GE):
         _ = [model.set_weights(self.global_model.get_weights()) for model in self.model]
+        print(len(self.model))
+        selected_for_training = np.random.choice(range(len(self.model)), size=self.P, replace=False).tolist() # we can set p here to consider a weight for each mdoel
 
-        for ith in range(len(self.model)):
+        print(len(self.model), selected_for_training)
 
-          x, y, cwt = self.stack_up(ith)
+        for ith in selected_for_training:
+          print(ith)
+
+          x, y, cwt = self.stack_up(ith) # the i-the user's data is extracting
           # print('shapes after def stack_up() ', x.shape, y.shape, cwt.shape)
           self.model[ith].fit(x=[x, cwt], y={"arousal": y[:, 0], "valence": y[:, 1]},
-                              batch_size=B, epochs=LE, verbose=2)
+                              batch_size=B, epochs=LE, verbose=1, callbacks=[history])
+
 
         rand_models_for_global_avg = np.random.choice(self.model, size=self.C, replace=False).tolist() # we can set p here to consider a weight for each mdoel
 
@@ -215,7 +228,7 @@ class EmoRec:
         results = self.global_model.evaluate(x=[self.x_te, self.cwt_te],
                                              y={"arousal": self.y_te[:, 0],
                                                 "valence": self.y_te[:, 1]},
-                                             batch_size=B)
+                                             batch_size=B, callbacks=[history])
 
 
   def test(self, B=32):
@@ -229,6 +242,7 @@ class EmoRec:
     """
     print('\nTesting Phase is starting. The result and confusion matrix will be shown here')
 
+
     if self.arch == 'CENT':
       trained_model = self.model
 
@@ -236,40 +250,23 @@ class EmoRec:
       trained_model = self.global_model
 
     x, y, cwt = self.x_te, self.y_te, self.cwt_te
-    # print('shape x, y, cwt', self.x_te.shape, self.y_te.shape, self.cwt_te.shape)
 
 
     y_hat = trained_model.predict(x=[x, cwt], batch_size=B)
     # print(type(y), y.shape, np.squeeze(y).shape, type(y_hat), len(y_hat), y_hat[0].shape)
 
-    # Arousal
-    y_, yhat = np.squeeze(y[:, 0]), np.squeeze(y_hat[0])
-    yhat = (yhat > 0.5001).astype(int)
-    conf_mat_arousal = confusion_matrix(y_.tolist(), yhat.tolist())
-    report_arousal = classification_report(y_.tolist(), yhat.tolist())
+    ut.report(y, y_hat, self.arch, self.ml)
+    ut.plots(trained_model.history, self.arch, self.ml, name='main_model')
 
-
-    # Valence
-    y_, yhat = np.squeeze(y[:, 1]), np.squeeze(y_hat[1])
-    yhat = (yhat > 0.5001).astype(int)
-    conf_mat_valence = confusion_matrix(y_.tolist(), yhat.tolist())
-    report_valence = classification_report(y_.tolist(), yhat.tolist())
-
-    print('\nReport of Arousal')
-    print(report_arousal)
-    print(conf_mat_arousal)
-
-    print('\nReport of Valence')
-    print(report_valence)
-    print(conf_mat_valence)
-
+    if len(self.model) > 1:
+      _ = [ut.plots(model.history, self.arch, self.ml, name=str(i)) for model, i in self.model]
 
 
 if __name__ == '__main__':
   print('Starting ... \n')
 
-  annotation_dir = '/GSR/CASE_dataset/CASE_dataset/interpolated/annotations/'  # the directory of annotations
-  physiological_dir = 'GSR/CASE_dataset/CASE_dataset/interpolated/physiological/'  # the directory fo physiological signals
+  # annotation_dir = './GSR/CASE_dataset/CASE_dataset/interpolated/annotations/'  # the directory of annotations
+  # physiological_dir='./GSR/CASE_dataset/CASE_dataset/interpolated/physiological'#the directory fo physiological signal
 
   # attr = {'phy_dir': physiological_dir,
   #         'ann_dir': annotation_dir,
@@ -280,20 +277,29 @@ if __name__ == '__main__':
   #         'model': 'CNN',
   #         'C': 2}
 
+  #
+  # attr = {'phy_dir': physiological_dir,
+  #         'ann_dir': annotation_dir,
+  #         'gsr_only': True,
+  #         'decompose': True,
+  #         'minmax_norm': True,
+  #         'architecture': 'CENT',
+  #         'model': 'CNN',
+  #         'C': 2}
 
-  attr = {'phy_dir': physiological_dir,
-          'ann_dir': annotation_dir,
-          'gsr_only': True,
+  attr = {'gsr_only': True,
           'decompose': True,
           'minmax_norm': True,
           'architecture': 'FED',
           'model': 'CNN',
-          'C': 2}
+          'C': 3,
+          'P': 9
+          }
 
 
   obj = EmoRec(attr)
   obj.train(GE=1, LE=1)
-  obj.test()
+  # obj.test()
 
 
 

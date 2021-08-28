@@ -138,3 +138,22 @@ class DNN:
         out2 = Dense(units=1, activation='sigmoid', name='valence')(l3)
 
         return out1, out2
+
+
+class LossHistory(tf.keras.callbacks.Callback):
+
+    def on_train_begin(self, logs={}):
+        self.history = {'loss': [], 'arousal_loss': [], 'valence_loss': [],
+                        'arousal_accuracy': [], 'valence_accuracy': []
+                        }
+
+    def on_batch_end(self, batch, logs={}):
+
+
+        self.history['loss'].append(logs.get('loss'))
+
+        self.history['arousal_loss'].append(logs.get('arousal_loss'))
+        self.history['valence_loss'].append(logs.get('valence_loss'))
+
+        self.history['arousal_accuracy'].append(logs.get('arousal_accuracy'))
+        self.history['valence_accuracy'].append(logs.get('valence_accuracy'))
