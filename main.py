@@ -65,6 +65,7 @@ class EmoRec:
     elif self.arch == 'FED':
       print('\nThe Number of Users is {}, The Number of sessions for each user is {}.'.format(self.Num_Usr,
                                                                                               self.Num_Sess))
+      print('The Number of Users used for training over local data (P) is {} '.format(self.P))
       print('The Number of Users used for aggregation in the global model (C) is {} '.format(self.C))
 
 
@@ -206,13 +207,10 @@ class EmoRec:
 
       for ge in range(GE):
         _ = [model.set_weights(self.global_model.get_weights()) for model in self.model]
-        print(len(self.model))
         selected_for_training = np.random.choice(range(len(self.model)), size=self.P, replace=False).tolist() # we can set p here to consider a weight for each mdoel
 
-        print(len(self.model), selected_for_training)
 
         for ith in selected_for_training:
-          print(ith)
 
           x, y, cwt = self.stack_up(ith) # the i-the user's data is extracting
           # print('shapes after def stack_up() ', x.shape, y.shape, cwt.shape)
@@ -293,7 +291,7 @@ if __name__ == '__main__':
           'architecture': 'FED',
           'model': 'CNN',
           'C': 3,
-          'P': 9
+          'P': 4
           }
 
 
