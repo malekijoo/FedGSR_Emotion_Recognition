@@ -40,12 +40,17 @@ def report(y, y_hat, arch, ml):
     # Saving
     now = datetime.now()
     date_time = now.strftime("%d.%m.%Y__%H.%M.%S")
+
+
     print('Arousal and Valence saved in the report directory with postfix date and time ,', date_time)
     if not os.path.isdir('./report'):
       os.makedirs('./report', exist_ok=True)
 
-    df_arousal.to_csv('./report/rep_arousal_{}_{}_{}.csv'.format(arch, ml, date_time), index=False)
-    df_valence.to_csv('./report/rep_valence_{}_{}_{}.csv'.format(arch, ml, date_time), index=False)
+    save_path = './report/' + date_time + '/'
+    os.makedirs(save_path, exist_ok=True)
+
+    df_arousal.to_csv(save_path+'rep_arousal_{}_{}_{}.csv'.format(arch, ml), index=False)
+    df_valence.to_csv(save_path+'rep_valence_{}_{}_{}.csv'.format(arch, ml), index=False)
 
 
 def plots(history, arch, ml, name):
@@ -65,7 +70,7 @@ def plots(history, arch, ml, name):
     plt.ylabel('Loss')
     plt.legend(numpoints=1, fontsize=20)
     # plt.show()
-    plt.savefig(save_path+'_Loss_{}_{}_{}.png'.format(name, arch, ml))
+    plt.savefig(save_path+'Loss_{}_{}_{}.png'.format(name, arch, ml))
 
     plt.plot(history.history['arousal_accuracy'], 'r', label='Arousal Accuracy')
     plt.plot(history.history['valence_accuracy'], 'b', label='Valence Accuracy')
@@ -73,7 +78,7 @@ def plots(history, arch, ml, name):
     plt.xlabel('Epoch')
     plt.ylabel('Accuracy')
     plt.legend(numpoints=1, fontsize=20)
-    plt.savefig(save_path+'_Accuracy_model({})_{}_{}.png'.format(name, arch, ml))
+    plt.savefig(save_path+'Accuracy_model({})_{}_{}.png'.format(name, arch, ml))
 
     # lgnd = plt.legend(loc="lower left", numpoints=1, fontsize=20)
     # lgnd.legendHandles[0]._legmarker.set_markersize(20)
