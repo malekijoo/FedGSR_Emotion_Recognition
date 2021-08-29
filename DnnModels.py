@@ -1,9 +1,9 @@
 import tensorflow as tf
 
-from tensorflow.keras.layers import Conv1D, Conv2D, MaxPooling2D, Dropout
-from tensorflow.keras.layers import Flatten, Dense, BatchNormalization, Concatenate
-from tensorflow.keras.layers import LSTM, Bidirectional, ConvLSTM1D, ConvLSTM2D
-
+from tensorflow.keras.layers import Conv1D, Conv2D, Dropout
+from tensorflow.keras.layers import Flatten, Dense, Concatenate
+from tensorflow.keras.layers import LSTM, Bidirectional, MaxPooling2D
+# from tensorflow.keras.layers import ConvLSTM1D, ConvLSTM2D, BatchNormalization
 
 
 class DNN:
@@ -33,40 +33,40 @@ class DNN:
 
         return out1, out2
 
-    def conv_LSTM(self):
-
-        l11 = ConvLSTM1D(32, kernel_size=5, padding="same",
-                         return_sequences=True, activation="relu")(tf.expand_dims(self._input[0], axis=-1))
-        l11 = BatchNormalization()(l11)
-
-        l12 = ConvLSTM2D(32, kernel_size=(5, 5), padding="same",
-                         return_sequences=True, activation="relu")(tf.expand_dims(self._input[1], axis=-1))
-        l12 = BatchNormalization()(l12)
-
-        l21 = ConvLSTM1D(32, kernel_size=3, padding="same", return_sequences=True, activation="relu")(l11)
-        l21 = BatchNormalization()(l21)
-
-        l22 = ConvLSTM2D(32, kernel_size=(3, 3), padding="same", return_sequences=True, activation="relu")(l12)
-        l22 = BatchNormalization()(l22)
-
-        l31 = ConvLSTM1D(32, kernel_size=1, padding="same", return_sequences=True, activation="relu")(l21)
-        l32 = ConvLSTM2D(32, kernel_size=(1, 1), padding="same", return_sequences=True, activation="relu")(l22)
-
-        l31 = Dropout(0.2)(l31)
-        l32 = Dropout(0.2)(l32)
-
-        l31 = Flatten()(l31)
-        l32 = Flatten()(l32)
-
-        conc_l = Concatenate()([l31, l32])
-
-        l4 = Dense(units=128, activation='relu')(conc_l)
-        l5 = Dense(units=64, activation='relu')(l4)
-
-        out1 = Dense(units=1, activation='sigmoid', name='arousal')(l5)
-        out2 = Dense(units=1, activation='sigmoid', name='valence')(l5)
-
-        return out1, out2
+    # def conv_LSTM(self):
+    #
+    #     l11 = ConvLSTM1D(32, kernel_size=5, padding="same",
+    #                      return_sequences=True, activation="relu")(tf.expand_dims(self._input[0], axis=-1))
+    #     l11 = BatchNormalization()(l11)
+    #
+    #     l12 = ConvLSTM2D(32, kernel_size=(5, 5), padding="same",
+    #                      return_sequences=True, activation="relu")(tf.expand_dims(self._input[1], axis=-1))
+    #     l12 = BatchNormalization()(l12)
+    #
+    #     l21 = ConvLSTM1D(32, kernel_size=3, padding="same", return_sequences=True, activation="relu")(l11)
+    #     l21 = BatchNormalization()(l21)
+    #
+    #     l22 = ConvLSTM2D(32, kernel_size=(3, 3), padding="same", return_sequences=True, activation="relu")(l12)
+    #     l22 = BatchNormalization()(l22)
+    #
+    #     l31 = ConvLSTM1D(32, kernel_size=1, padding="same", return_sequences=True, activation="relu")(l21)
+    #     l32 = ConvLSTM2D(32, kernel_size=(1, 1), padding="same", return_sequences=True, activation="relu")(l22)
+    #
+    #     l31 = Dropout(0.2)(l31)
+    #     l32 = Dropout(0.2)(l32)
+    #
+    #     l31 = Flatten()(l31)
+    #     l32 = Flatten()(l32)
+    #
+    #     conc_l = Concatenate()([l31, l32])
+    #
+    #     l4 = Dense(units=128, activation='relu')(conc_l)
+    #     l5 = Dense(units=64, activation='relu')(l4)
+    #
+    #     out1 = Dense(units=1, activation='sigmoid', name='arousal')(l5)
+    #     out2 = Dense(units=1, activation='sigmoid', name='valence')(l5)
+    #
+    #     return out1, out2
 
     def stacked_LSTM(self):
 

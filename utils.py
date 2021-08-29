@@ -8,6 +8,14 @@ from sklearn.metrics import roc_auc_score
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import classification_report
 
+if 'posix' in os.name:
+    deli = '/'
+    cur_path = os.getcwd()
+elif 'nt' in os.name:
+    deli = '\\'
+    cur_path = os.getcwd()
+
+
 
 def report(y, y_hat, arch, ml):
 
@@ -41,12 +49,13 @@ def report(y, y_hat, arch, ml):
     now = datetime.now()
     date_time = now.strftime("%d.%m.%Y__%H.%M.%S")
 
+    wd = cur_path + '{}report{}'.format(deli, deli)
 
     print('Arousal and Valence saved in the report directory with postfix date and time ,', date_time)
-    if not os.path.isdir('./report'):
-      os.makedirs('./report', exist_ok=True)
+    if not os.path.isdir(wd):
+      os.makedirs(wd, exist_ok=True)
 
-    save_path = './report/' + date_time + '/'
+    save_path = wd + date_time + deli
     os.makedirs(save_path, exist_ok=True)
 
     df_arousal.to_csv(save_path+'rep_arousal_{}_{}_{}.csv'.format(arch, ml), index=False)
@@ -54,13 +63,16 @@ def report(y, y_hat, arch, ml):
 
 
 def plots(history, arch, ml, name):
-    if not os.path.isdir('./fig'):
-      os.makedirs('./fig', exist_ok=True)
+    wd = cur_path + '{}figs{}'.format(deli, deli)
+
+    if not os.path.isdir(wd):
+      os.makedirs(wd, exist_ok=True)
+
     now = datetime.now()
     date_time = now.strftime("%d.%m.%Y__%H.%M.%S")
-    save_path = './fig/' + date_time + '/'
-    os.makedirs(save_path, exist_ok=True)
 
+    save_path = wd + date_time + deli
+    os.makedirs(save_path, exist_ok=True)
 
     plt.plot(history.history['loss'], 'm', label='Loss')
     plt.plot(history.history['arousal_loss'], 'r', label='Arousal Loss')
@@ -71,6 +83,7 @@ def plots(history, arch, ml, name):
     plt.legend(numpoints=1, fontsize=20)
     # plt.show()
     plt.savefig(save_path+'Loss_{}_{}_{}.png'.format(name, arch, ml))
+
 
     plt.plot(history.history['arousal_accuracy'], 'r', label='Arousal Accuracy')
     plt.plot(history.history['valence_accuracy'], 'b', label='Valence Accuracy')

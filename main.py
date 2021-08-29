@@ -26,9 +26,14 @@ class EmoRec:
 
     print('The DNN class is building ....')
 
+    if 'posix' in os.name:
+      path = './GSR/CASE_dataset/CASE_dataset/interpolated/{}/'
+    elif 'nt' in os.name:
+      path = 'C:\\Users\\AMiiR\\Downloads\\DL\\Codes\\AmirHM\\FedGSR_Emotion_Recognition-main\\GSR\\CASE_dataset\\interpolated\\{}\\'
+
     # initializing values
-    self.phy_dir = kwargs.get('phy_dir', './GSR/CASE_dataset/CASE_dataset/interpolated/physiological/')
-    self.ann_dir = kwargs.get('ann_dir', './GSR/CASE_dataset/CASE_dataset/interpolated/annotations/')
+    self.phy_dir = kwargs.get('phy_dir', path.format('physiological'))
+    self.ann_dir = kwargs.get('ann_dir', path.format('annotations'))
 
     self.arch = kwargs.get('architecture', 'CENT')
     self.ml = kwargs.get('model', 'CNN')
@@ -263,8 +268,8 @@ class EmoRec:
 if __name__ == '__main__':
   print('Starting ... \n')
 
-  # annotation_dir = './GSR/CASE_dataset/CASE_dataset/interpolated/annotations/'  # the directory of annotations
-  # physiological_dir='./GSR/CASE_dataset/CASE_dataset/interpolated/physiological'#the directory fo physiological signal
+  # annotation_dir = ?
+  # physiological_dir= ?
 
   # attr = {'phy_dir': physiological_dir,
   #         'ann_dir': annotation_dir,

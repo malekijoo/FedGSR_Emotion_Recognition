@@ -26,12 +26,18 @@ class CASE():
         self.arch = arch
         self.x, self.y, self.cwt = [], [], []
 
+        if 'posix' in os.name:
+            self.deli = '/'
+            self.cur_path = os.getcwd()
+        elif 'nt' in os.name:
+            self.deli = '\\'
+            self.cur_path = os.getcwd()
 
 
 
     @staticmethod
     def read(pathdir, f_extention):
-        return np.array(tf.io.gfile.glob(str(pathdir) + f_extention))
+        return np.array(tf.io.gfile.glob(pathdir + f_extention))
 
     @staticmethod
     def read_dataframe(address, columns):
@@ -217,42 +223,44 @@ class CASE():
 
     def save_dataset(self):
         start_time = datetime.now()
+        wd = self.cur_path + '{}dataset{}'.format(self.deli, self.deli)
 
         if self.arch == 'CENT':
             print('\n Centralized Architecture DATASET')
-            if not os.path.isdir('./dataset/CENT/'):
-                os.makedirs('./dataset/CENT/', exist_ok=True)
+            if not os.path.isdir(wd+self.arch+self.deli):
+                os.makedirs(wd+self.arch+self.deli, exist_ok=True)
             self.cent_process()
             print('building DATASET time ==', datetime.now()-start_time)
 
         elif self.arch == 'FED':
             print('\n Federated Architecture DATASET')
-            if not os.path.isdir('./dataset/FED/'):
-                os.makedirs('./dataset/FED/', exist_ok=True)
+            if not os.path.isdir(wd+self.arch+self.deli):
+                os.makedirs(wd+self.arch+self.deli, exist_ok=True)
             self.fed_process()
             print('building DATASET time ', datetime.now()-start_time)
 
             # self.fed_process()
 
-        print(self.x.shape, self.x.shape, self.cwt.shape)
-        np.save('./dataset/{}/x.npy'.format(self.arch), np.array(self.x))  # save
-        np.save('./dataset/{}/y.npy'.format(self.arch), np.array(self.y))  # save
-        np.save('./dataset/{}/cwt.npy'.format(self.arch), np.array(self.cwt))  # save
+        # print(self.x.shape, self.x.shape, self.cwt.shape)
+        np.save(wd+self.arch+self.deli+'x.npy', np.array(self.x))  # save
+        np.save(wd+self.arch+self.deli+'y.npy', np.array(self.y))  # save
+        np.save(wd+self.arch+self.deli+'cwt.npy', np.array(self.cwt))  # save
 
         # print('dataset is saved in "x.npy", "y.npy", and cwt.npy files')
 
     def load_data(self, x='/x.npy', y='/y.npy', cwt='/cwt.npy'):
         print('Loading the Dataset. ')
-        wd = './dataset/'
+        wd = self.cur_path + '{}dataset{}'.format(self.deli, self.deli)
+
         if not os.path.isdir(wd):
             os.makedirs(wd, exist_ok=True)
-        if not os.path.isfile(wd+'{}/y.npy'.format(self.arch)):
+        if not os.path.isfile(wd+self.arch+self.deli+'y.npy'):
             self.save_dataset()
 
 
-        x = np.load('./dataset/{}/x.npy'.format(self.arch), allow_pickle=True)
-        y = np.load('./dataset/{}/y.npy'.format(self.arch), allow_pickle=True)
-        cwt = np.load('./dataset/{}/cwt.npy'.format(self.arch), allow_pickle=True)
+        x = np.load(wd+self.arch+self.deli+'x.npy', allow_pickle=True)
+        y = np.load(wd+self.arch+self.deli+'y.npy', allow_pickle=True)
+        cwt = np.load(wd+self.arch+self.deli+'cwt.npy', allow_pickle=True)
 
         # if self.arch == 'CENT':
         #     x = np.concatenate(x, np.load('./dataset/CENT/x1.npy', allow_pickle=True), axis=0)
