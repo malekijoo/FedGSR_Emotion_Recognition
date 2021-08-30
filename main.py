@@ -295,14 +295,14 @@ if __name__ == '__main__':
           'minmax_norm': True,
           'architecture': 'FED',
           'model': 'CNN',
-          'C': 3,
-          'P': 4
+          'C': 5,
+          'P': 8
           }
 
 
   obj = EmoRec(attr)
   obj.train(GE=1, LE=1)
-  # obj.test()
+  obj.test()
 
 
 
