@@ -151,8 +151,8 @@ class CASE():
         ann_col = ['jstime', 'valence', 'arousal', 'video']
 
 
-        username = self.phy_add[usr].split('/')[-1].split('.')[0]
-        tusrname = self.ann_add[usr].split('/')[-1].split('.')[0]
+        username = self.phy_add[usr].split(self.deli)[-1].split('.')[0]
+        tusrname = self.ann_add[usr].split(self.deli)[-1].split('.')[0]
 
         assert username == tusrname
 
