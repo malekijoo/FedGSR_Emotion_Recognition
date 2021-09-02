@@ -66,11 +66,10 @@ class CASE():
     @staticmethod
     def mean_interval_mapping(label):
         """Mapping function helps us map the label to several predifined classes"""
-        # print(label)
+
         valence = label['valence'].mean()
         arousal = label['arousal'].mean()
-        # print(valence)
-        # print(arousal)
+
         if arousal >= 5 and valence >= 5:  # HIGH arousal - HIGH valence (HH)
             return [1, 1]
 
