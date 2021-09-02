@@ -66,10 +66,11 @@ class CASE():
     @staticmethod
     def mean_interval_mapping(label):
         """Mapping function helps us map the label to several predifined classes"""
-
+        # print(label)
         valence = label['valence'].mean()
         arousal = label['arousal'].mean()
-
+        # print(valence)
+        # print(arousal)
         if arousal >= 5 and valence >= 5:  # HIGH arousal - HIGH valence (HH)
             return [1, 1]
 
@@ -132,6 +133,7 @@ class CASE():
 
             # clss = CASE.inc_dec_map(label)
             clss = CASE.mean_interval_mapping(label)
+            # print('class', clss)
 
             sample = gp_sess_phy_df[(gp_sess_phy_df['daqtime'] <= end_p) & (gp_sess_phy_df['daqtime'] > str_p)]
             cwt = CASE.feature_extraction(sample=sample)
@@ -171,7 +173,7 @@ class CASE():
 
     def cent_process(self):
         for usr in range(self.NumberOfUsers):
-            # for i in range(5):
+            # for usr in range(2):
 
             gp_phy_df, gp_ann_df = self.process(usr=usr)
 
@@ -182,9 +184,9 @@ class CASE():
                 x, y, cwt = CASE.session_chunk(gp_sess_ann_df=gp_sess_ann_df, gp_sess_phy_df=gp_sess_phy_df)
                 self.x.append(x), self.y.append(y), self.cwt.append(cwt)
 
-        self.x = np.array(self.x)
-        self.y = np.array(self.y)
-        self.cwt = np.array(self.cwt)
+        self.x = np.concatenate(self.x)
+        self.y = np.concatenate(self.y)
+        self.cwt = np.concatenate(self.cwt)
 
     ###############################################################################################################
     ###############################################################################################################
@@ -198,8 +200,8 @@ class CASE():
     def fed_process(self):
         print('making the DATASET federated')
 
-        for usr in range(self.NumberOfUsers):
-            # for usr in range(10):
+        # for usr in range(self.NumberOfUsers):
+        for usr in range(1):
 
             gp_phy_df, gp_ann_df = self.process(usr=usr)
             sess_x, sess_y, sess_cwt = [], [], []
