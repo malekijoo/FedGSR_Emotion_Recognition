@@ -270,8 +270,8 @@ class CASE():
     ###############################################################################################################
 
     def cent_process(self):
-        # for usr in range(self.NumberOfUsers):
-        for usr in range(3):
+        for usr in range(self.NumberOfUsers):
+            # for usr in range(3):
 
             gp_phy_df, gp_ann_df = self.preprocess(usr=usr)
 
@@ -302,8 +302,8 @@ class CASE():
     def fed_process(self):
         print('making the DATASET federated')
 
-        # for usr in range(self.NumberOfUsers):
-        for usr in range(2):
+        for usr in range(self.NumberOfUsers):
+            # for usr in range(2):
 
             gp_phy_df, gp_ann_df = self.preprocess(usr=usr)
             sess_x, sess_y, sess_cwt, sess_sf, sess_ss, sess_resp = [], [], [], [], [], []
