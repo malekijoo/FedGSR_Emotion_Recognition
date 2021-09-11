@@ -7,7 +7,10 @@ import tensorflow as tf
 import utils as ut
 from DnnModels import DNN as DNN
 from DnnModels import LossHistory
+# from sklearn.utils import class_weight
+from functools import partial
 
+from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
@@ -15,7 +18,7 @@ import matplotlib.pyplot as plt
 
 
 
-
+np.random.seed(10)  # for reproducibility
 pd.options.display.width = 0
 
 
@@ -50,15 +53,17 @@ class EmoRec:
     # features extracted by Continuous wavelet transform (cwt) from Phasic GSR,
     # and labels (y)
     dataset = dt.CASE(self.phy_dir, self.ann_dir, self.arch)
-    self.x, self.y, self.cwt = dataset.load_data() # you can pass address here to the files.
+    self.x, self.y, self.cwt, self.sf, self.ss, self.resp = dataset.load_data() # pass address here to the files.
     print('The Dataset is loaded.')
-
+    print('shapes are ')
+    print(self.x.shape, self.y.shape, self.cwt.shape, self.sf.shape, self.ss.shape, self.resp.shape)
 
     # self.Num_Usr is the number of file in the dataset
     self.Num_Usr = self.x.shape[0]
     self.C = kwargs.get('C', self.x.shape[0]) # Number of selected model for Aggregating (Must be <29)
     self.P = kwargs.get('P', self.x.shape[0]) # Number of selected model for training (Must be <29)
-    self.Num_Sess = kwargs.get('Num_Sess', self.x.shape[1])
+    if self.arch == 'FED':
+      self.Num_Sess = kwargs.get('Num_Sess', self.x.shape[1])
 
     print('In this run, we use a {}-based model with {} architecture.'.format(self.ml, self.arch))
 
@@ -72,12 +77,13 @@ class EmoRec:
                                                                                               self.Num_Sess))
       print('The Number of Users used for training over local data (P) is {} '.format(self.P))
       print('The Number of Users used for aggregation in the global model (C) is {} '.format(self.C))
-
+      self.fed_history = []
 
 
       # self.model = [self._create_model() for num_usr in range(3)] # this line will be deleted
-      self.model = [self._create_model() for num_usr in range((self.Num_Usr-1))]
-      print('Number of models used for aggregating the global model is  {}.'.format(len(self.model)))
+      # self.model = [self._create_model() for num_usr in range((self.Num_Usr-1))]
+      self.model = self._create_model()
+      # print('Number of models used for aggregating the global model is  {}.'.format(len(self.model)))
       self.global_model = self._create_model()
 
 
@@ -86,12 +92,13 @@ class EmoRec:
 
 
     if self.gsr_only_flag:
-      input_1 = Input(shape=(1000, 1), name="input_1")
-      # input_2 = Input(shape=(50, 2,  1), name="input_2")
-      input_2 = Input(shape=(1000, 20, 1), name="input_2")
+      input_1 = Input(shape=(1000, 20, 1), name="input_1")  # continuous wavelet transform, cwt
+      input_2 = Input(shape=(51, 1), name="input_2")  # spectral flux, sf
+      input_3 = Input(shape=(4, 1), name="input_3")  # statistic features, ss
+      input_4 = Input(shape=(1000, 4), name="input_4")  # responses, SCR_Peaks, SCR_RiseTime, SCR_Height, SCR_Recovery
 
       if 'LSTM' in self.ml:
-        input_2 = Input(shape=(1000, 20), name="input_2")
+        input_1 = Input(shape=(1000, 20), name="input_1")
 
 
     else:
@@ -100,30 +107,47 @@ class EmoRec:
 
 
 
-    dnn = DNN(self.ml, [input_1, input_2])
+    dnn = DNN(self.ml, [input_1, input_2, input_3, input_4])
 
 
     if self.ml == 'CNN':
-      output1, output2 = dnn.CNN()
+      arousal, valence = dnn.CNN()
     elif self.ml == 'LSTM':
-      output1, output2 = dnn.LSTM()
+      arousal, valence = dnn.LSTM()
     elif self.ml == 'conv_LSTM':
-      output1, output2 = dnn.conv_LSTM()
+      arousal, valence = dnn.conv_LSTM()
     elif self.ml == 'stacked_LSTM':
-      output1, output2 = dnn.stacked_LSTM()
+      arousal, valence = dnn.stacked_LSTM()
     elif self.ml == 'bi_LSTM':
-      output1, output2 = dnn.bi_LSTM()
+      arousal, valence = dnn.bi_LSTM()
     elif self.ml == 'unsequenced_LSTM':
-      output1, output2 = dnn.unsequenced_LSTM()
+      arousal, valence = dnn.unsequenced_LSTM()
 
+    w1 = np.ones((2, 2))
+    w1[1, 0] = 6
+    w1[1, 1] = 6
+
+    w2 = np.ones((2, 2))
+    w2[1, 0] = 6
+    w2[1, 1] = 6
+
+    # loss1 = partial(ut.weighted_categorical_crossentropy, weights=w1)
+    # loss2 = partial(ut.weighted_categorical_crossentropy, weights=w2)
+    #
+    # loss1.__name__ = 'loss1'
+    # loss2.__name__ = 'loss2'
+    #
+    # losses = {'arousal': loss1,
+    #           'valence': loss2,}
 
     losses = {'arousal': 'binary_crossentropy',
               'valence': 'binary_crossentropy',}
 
+
     metrics = {'arousal': 'accuracy',
                'valence': 'accuracy',}
 
-    model = Model(inputs=[input_1, input_2], outputs=[output1, output2],)
+    model = Model(inputs=[input_1, input_2, input_3, input_4], outputs=[arousal, valence],)
     # plot_model(self.cnn, to_file='CNN.png', show_shapes=True, show_layer_names=True)
     model.compile(optimizer=self.optimizer,
                   loss=losses,
@@ -136,9 +160,9 @@ class EmoRec:
 
 
   @staticmethod
-  def get_average_weights(models):
+  def get_average_weights(weights):
 
-    weights = [model.get_weights() for model in models]
+    # weights = [model.get_weights() for model in models]
     new_weights = list()
 
     for weights_list_tuple in zip(*weights):
@@ -161,11 +185,15 @@ class EmoRec:
     x = np.concatenate([self.x[ith_usr][i] for i in range(self.Num_Sess)])
     y = np.concatenate([self.y[ith_usr][i] for i in range(self.Num_Sess)])
     cwt = np.concatenate([self.cwt[ith_usr][i] for i in range(self.Num_Sess)])
+    sf = np.concatenate([self.sf[ith_usr][i] for i in range(self.Num_Sess)])
+    ss = np.concatenate([self.ss[ith_usr][i] for i in range(self.Num_Sess)])
+    resp = np.concatenate([self.resp[ith_usr][i] for i in range(self.Num_Sess)])
 
     if 'LSTM' not in self.ml:
       cwt = np.expand_dims(cwt, axis=-1)
 
-    return np.expand_dims(x, axis=-1), np.expand_dims(y, axis=-1), cwt
+    return np.expand_dims(x, axis=-1), np.expand_dims(y, axis=-1), cwt,\
+           np.expand_dims(sf, axis=-1), np.expand_dims(ss, axis=-1), np.expand_dims(resp, axis=-1)
 
 
   def train(self, B=32, GE=10, LE=1):
@@ -184,55 +212,82 @@ class EmoRec:
 
     history = LossHistory()
 
+    # class_weights = {'arousal': {0: 2, 1: 0.2}, 'valence': {0: 2, 1: 0.2}}
+    #
+    # print('class weights: ', class_weights)
 
     if self.arch == 'CENT':
 
       self.x = np.expand_dims(self.x, axis=-1)
       self.y = np.expand_dims(self.y, axis=-1)
+      self.sf = np.expand_dims(self.sf, axis=-1)
+      self.ss = np.expand_dims(self.ss, axis=-1)
+      self.resp = np.expand_dims(self.resp, axis=-1)
+
       if 'LSTM' not in self.ml:
         self.cwt = np.expand_dims(self.cwt, axis=-1)
 
       assert self.x.shape[0] == self.y.shape[0] == self.cwt.shape[0]
+      assert self.sf.shape[0] == self.ss.shape[0] == self.resp.shape[0]
 
-      tr_te_rate = round(0.9 * self.x.shape[0])
+      tr_te_rate = round(0.995 * self.x.shape[0])
       self.x_tr, self.y_tr, self.cwt_tr = self.x[:tr_te_rate], self.y[:tr_te_rate], self.cwt[:tr_te_rate]
+      self.sf_tr, self.ss_tr, self.resp_tr = self.sf[:tr_te_rate], self.ss[:tr_te_rate], self.resp[:tr_te_rate]
+
       self.x_te, self.y_te, self.cwt_te = self.x[tr_te_rate:], self.y[tr_te_rate:], self.cwt[tr_te_rate:]
+      self.sf_te, self.ss_te, self.resp_te = self.sf[tr_te_rate:], self.ss[tr_te_rate:], self.resp[tr_te_rate:]
 
+      # y_arousal = to_categorical(self.y_tr[:, 0], 2)
+      # y_valence = to_categorical(self.y_tr[:, 0], 2)
 
-      self.model.fit(x=[self.x_tr, self.cwt_tr], y={"arousal": self.y_tr[:, 0], "valence": self.y_tr[:, 1]},
+      self.model.fit(x=[self.cwt_tr, self.sf_tr, self.ss_tr, self.resp_tr],
+                     y={"arousal": self.y_tr[:, 0], "valence": self.y_tr[:, 1]},
                      batch_size=B, epochs=GE, verbose=1, callbacks=[history])
 
 
 
     elif self.arch == 'FED':
 
-      test_user = self.Num_Usr-1 # I-th number of users in row that will be used for testing phase.
-
+      test_user = self.Num_Usr-1 # the last user in the array of users will be used for testing phase.
       self.x_te, self.y_te, self.cwt_te = self.stack_up(test_user)
 
-      for ge in range(GE):
-        _ = [model.set_weights(self.global_model.get_weights()) for model in self.model]
-        selected_for_training = np.random.choice(range(len(self.model)), size=self.P, replace=False).tolist() # we can set p here to consider a weight for each mdoel
+      weights_ = self.model.get_weights()
+      temp_save_weight = []
 
+
+      for ge in range(GE):
+        print('\nGlobal Epoch {} .'.format(ge))
+
+        self.model.set_weights(self.global_model.get_weights())
+
+        selected_for_training = np.random.choice(range(self.Num_Usr-1), size=self.P, replace=False).tolist() # we can set p here to consider a weight for each mdoel
 
         for ith in selected_for_training:
+          self.model.set_weights(self.global_model.get_weights())
 
-          x, y, cwt = self.stack_up(ith) # the i-the user's data is extracting
+          x, y, cwt, sf, ss, resp = self.stack_up(ith) # the i-the user's data is extracting
           # print('shapes after def stack_up() ', x.shape, y.shape, cwt.shape)
-          self.model[ith].fit(x=[x, cwt], y={"arousal": y[:, 0], "valence": y[:, 1]},
-                              batch_size=B, epochs=LE, verbose=1, callbacks=[history])
+          self.model.fit(x=[cwt, sf, ss, resp], y={"arousal": y[:, 0], "valence": y[:, 1]},
+                         batch_size=B, epochs=LE, verbose=2)
 
+          temp_save_weight.append(self.model.get_weights())
 
-        rand_models_for_global_avg = np.random.choice(self.model, size=self.C, replace=False).tolist() # we can set p here to consider a weight for each mdoel
+          self.model.set_weights(self.global_model.get_weights())
 
-        self.global_model.set_weights(self.get_average_weights(rand_models_for_global_avg))
+        rand_models_weights_for_global_avg = np.random.choice(len(temp_save_weight),
+                                                              size=self.C,
+                                                              replace=False).tolist() # we can set p here to consider a weight for each mdoel
 
-        print('\nGlobal Epoch {} .'.format(ge))
-        results = self.global_model.evaluate(x=[self.x_te, self.cwt_te],
+        rand_models_weights_for_global_avg = [temp_save_weight[i] for i in rand_models_weights_for_global_avg]
+
+        self.global_model.set_weights(self.get_average_weights(rand_models_weights_for_global_avg))
+
+        results = self.global_model.evaluate(x=[self.cwt_te, self.sf_te, self.ss_te, self.resp_te],
                                              y={"arousal": self.y_te[:, 0],
                                                 "valence": self.y_te[:, 1]},
-                                             batch_size=B, callbacks=[history])
-
+                                             batch_size=B)
+        self.fed_history.append(results)
+        print('result is ', results)
 
   def test(self, B=32):
     """
@@ -248,9 +303,11 @@ class EmoRec:
 
     if self.arch == 'CENT':
       trained_model = self.model
+      history = trained_model.history
 
     elif self.arch == 'FED':
       trained_model = self.global_model
+      history = self.fed_history
 
     x, y, cwt = self.x_te, self.y_te, self.cwt_te
 
@@ -259,10 +316,8 @@ class EmoRec:
     # print(type(y), y.shape, np.squeeze(y).shape, type(y_hat), len(y_hat), y_hat[0].shape)
 
     ut.report(y, y_hat, self.arch, self.ml)
-    ut.plots(trained_model.history, self.arch, self.ml, name='main_model')
+    ut.plots(history, self.arch, self.ml, name='main_model')
 
-    if len(self.model) > 1:
-      _ = [ut.plots(model.history, self.arch, self.ml, name=str(i)) for model, i in self.model]
 
 
 if __name__ == '__main__':
@@ -289,20 +344,33 @@ if __name__ == '__main__':
   #         'architecture': 'CENT',
   #         'model': 'CNN',
   #         'C': 2}
-
+  #
   attr = {'gsr_only': True,
           'decompose': True,
           'minmax_norm': True,
-          'architecture': 'FED',
+          'architecture': 'CENT',
           'model': 'CNN',
-          'C': 5,
-          'P': 8
+          'C': 2,
+          'P': 2
           }
+
+
+  # attr = {'gsr_only': True,
+  #         'decompose': True,
+  #         'minmax_norm': True,
+  #         'architecture': 'CENT',
+  #         'model': 'CNN',
+  #         'C': 5,
+  #         'P': 8
+  #         }
 
 
   obj = EmoRec(attr)
   obj.train(GE=1, LE=1)
-  obj.test()
+  # obj.test()
+
+
+
 
 
 
