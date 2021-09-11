@@ -22,13 +22,10 @@ class DNN:
         l12_flat = Flatten()(l12)
         l13_flat = Flatten()(l13)
         l14_flat = Flatten()(l14)
-        print(l11_flat.shape, l12_flat.shape, l13_flat.shape, l14_flat.shape)
+        # print(l11_flat.shape, l12_flat.shape, l13_flat.shape, l14_flat.shape)
 
         l1_concat = Concatenate()([l11_flat, l12_flat, l13_flat, l14_flat])
-        print(l1_concat.shape)
-
         l1_concat = tf.expand_dims(l1_concat, axis=-1)
-        print(l1_concat.shape)
 
         l21 = Conv1D(512, kernel_size=7, padding='same', strides=1, activation='relu')(l1_concat)
         l31 = Conv1D(256, kernel_size=3, padding='same', strides=1, activation='relu')(l21)
