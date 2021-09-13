@@ -28,16 +28,16 @@ class EmoRec:
   def __init__(self, kwargs):
 
     print('The DNN class is building ....')
-
+    cur_path = os.getcwd()
     if 'posix' in os.name:
-      path = './GSR/CASE_dataset/CASE_dataset/interpolated/{}/'
+      path = './GSR/CASE_dataset/interpolated/{}/'
     elif 'nt' in os.name:
-      path = 'C:\\Users\\AMiiR\\Downloads\\DL\\Codes\\AmirHM\\FedGSR_Emotion_Recognition-main\\GSR\\CASE_dataset\\interpolated\\{}\\'
+      path = '/home/amiir/Desktop/FedGSR/GSR/CASE_dataset/interpolated/{}/'
 
     # initializing values
     self.phy_dir = kwargs.get('phy_dir', path.format('physiological'))
     self.ann_dir = kwargs.get('ann_dir', path.format('annotations'))
-
+    print(self.phy_dir)
     self.arch = kwargs.get('architecture', 'CENT')
     self.ml = kwargs.get('model', 'CNN')
     self.decompose_flag = kwargs.get('decompose', False)
@@ -92,13 +92,14 @@ class EmoRec:
 
 
     if self.gsr_only_flag:
-      input_1 = Input(shape=(1000, 20, 1), name="input_1")  # continuous wavelet transform, cwt
+      input_0 = Input(shape=(1000, 1), name="input_0")
+      input_1 = Input(shape=(1000, 7, 1), name="input_1")  # continuous wavelet transform, cwt
       input_2 = Input(shape=(51, 1), name="input_2")  # spectral flux, sf
-      input_3 = Input(shape=(4, 1), name="input_3")  # statistic features, ss
+      # input_3 = Input(shape=(4, 1), name="input_3")  # statistic features, ss
       input_4 = Input(shape=(1000, 4), name="input_4")  # responses, SCR_Peaks, SCR_RiseTime, SCR_Height, SCR_Recovery
 
       if 'LSTM' in self.ml:
-        input_1 = Input(shape=(1000, 20), name="input_1")
+        input_1 = Input(shape=(1000, 7), name="input_1")
 
 
     else:
@@ -107,7 +108,7 @@ class EmoRec:
 
 
 
-    dnn = DNN(self.ml, [input_1, input_2, input_3, input_4])
+    dnn = DNN(self.ml, [input_0, input_1, input_2, input_4])
 
 
     if self.ml == 'CNN':
@@ -147,7 +148,7 @@ class EmoRec:
     metrics = {'arousal': 'accuracy',
                'valence': 'accuracy',}
 
-    model = Model(inputs=[input_1, input_2, input_3, input_4], outputs=[arousal, valence],)
+    model = Model(inputs=[input_0, input_1, input_2, input_4], outputs=[arousal, valence],)
     # plot_model(self.cnn, to_file='CNN.png', show_shapes=True, show_layer_names=True)
     model.compile(optimizer=self.optimizer,
                   loss=losses,
@@ -240,7 +241,7 @@ class EmoRec:
       # y_arousal = to_categorical(self.y_tr[:, 0], 2)
       # y_valence = to_categorical(self.y_tr[:, 0], 2)
 
-      self.model.fit(x=[self.cwt_tr, self.sf_tr, self.ss_tr, self.resp_tr],
+      self.model.fit(x=[self.x_tr, self.cwt_tr, self.sf_tr, self.resp_tr],
                      y={"arousal": self.y_tr[:, 0], "valence": self.y_tr[:, 1]},
                      batch_size=B, epochs=GE, verbose=1, callbacks=[history])
 
@@ -323,9 +324,6 @@ class EmoRec:
 if __name__ == '__main__':
   print('Starting ... \n')
 
-  # annotation_dir = ?
-  # physiological_dir= ?
-
   # attr = {'phy_dir': physiological_dir,
   #         'ann_dir': annotation_dir,
   #         'gsr_only': True,
@@ -335,23 +333,12 @@ if __name__ == '__main__':
   #         'model': 'CNN',
   #         'C': 2}
 
-  #
-  # attr = {'phy_dir': physiological_dir,
-  #         'ann_dir': annotation_dir,
-  #         'gsr_only': True,
-  #         'decompose': True,
-  #         'minmax_norm': True,
-  #         'architecture': 'CENT',
-  #         'model': 'CNN',
-  #         'C': 2}
-  #
+
   attr = {'gsr_only': True,
           'decompose': True,
           'minmax_norm': True,
           'architecture': 'CENT',
           'model': 'CNN',
-          'C': 2,
-          'P': 2
           }
 
 
@@ -366,8 +353,8 @@ if __name__ == '__main__':
 
 
   obj = EmoRec(attr)
-  obj.train(GE=1, LE=1)
-  # obj.test()
+  obj.train(GE=10, LE=1)
+  obj.test()
 
 
 

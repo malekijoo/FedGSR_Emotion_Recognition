@@ -130,7 +130,7 @@ class CASE():
 
     @staticmethod
     def cwt(sample):
-        widths = np.arange(1, 21)
+        widths = np.arange(1, 8)
         return signal.cwt(sample, signal.ricker, widths=widths).T  # shape (20, len(sample)])
 
     @staticmethod
@@ -272,7 +272,7 @@ class CASE():
     def cent_process(self):
         for usr in range(self.NumberOfUsers):
             # for usr in range(3):
-
+            print('usr : ', usr)
             gp_phy_df, gp_ann_df = self.preprocess(usr=usr)
 
             for sess in range(gp_ann_df.shape[0]):
@@ -337,14 +337,14 @@ class CASE():
         wd = self.cur_path + '{}dataset{}'.format(self.deli, self.deli)
 
         if self.arch == 'CENT':
-            print('\n Centralized Architecture DATASET')
+            print('\nCentralized Architecture DATASET')
             if not os.path.isdir(wd+self.arch+self.deli):
                 os.makedirs(wd+self.arch+self.deli, exist_ok=True)
             self.cent_process()
             print('building DATASET time ==', datetime.now()-start_time)
 
         elif self.arch == 'FED':
-            print('\n Federated Architecture DATASET')
+            print('\nFederated Architecture DATASET')
             if not os.path.isdir(wd+self.arch+self.deli):
                 os.makedirs(wd+self.arch+self.deli, exist_ok=True)
             self.fed_process()

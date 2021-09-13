@@ -13,18 +13,22 @@ class DNN:
 
     def CNN(self):
 
-        l11 = Conv2D(16, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[0])
-        l12 = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[1])
-        l13 = Conv1D(8, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[2])
-        l14 = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[3])
+        l10 = Conv1D(16, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[0])
+        l11 = Conv2D(4, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[1])
+        l12 = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[2])
+        # l13 = Conv1D(16, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[3])
+        l14 = Conv1D(8, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[4])
 
+        l10_flat = Flatten()(l10)
         l11_flat = Flatten()(l11)
         l12_flat = Flatten()(l12)
-        l13_flat = Flatten()(l13)
+        # l13_flat = Flatten()(l13)
         l14_flat = Flatten()(l14)
-        # print(l11_flat.shape, l12_flat.shape, l13_flat.shape, l14_flat.shape)
 
-        l1_concat = Concatenate()([l11_flat, l12_flat, l13_flat, l14_flat])
+        print(l10_flat.shape, l11_flat.shape, l12_flat.shape, l14_flat.shape)
+
+        l1_concat = Concatenate()([l10_flat, l11_flat, l12_flat, l14_flat])
+        print(l1_concat.shape)
         l1_concat = tf.expand_dims(l1_concat, axis=-1)
 
         l21 = Conv1D(512, kernel_size=7, padding='same', strides=1, activation='relu')(l1_concat)
