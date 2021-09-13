@@ -240,7 +240,7 @@ class EmoRec:
 
       # y_arousal = to_categorical(self.y_tr[:, 0], 2)
       # y_valence = to_categorical(self.y_tr[:, 0], 2)
-
+      #
       self.model.fit(x=[self.x_tr, self.cwt_tr, self.sf_tr, self.resp_tr],
                      y={"arousal": self.y_tr[:, 0], "valence": self.y_tr[:, 1]},
                      batch_size=B, epochs=GE, verbose=1, callbacks=[history])
@@ -310,10 +310,10 @@ class EmoRec:
       trained_model = self.global_model
       history = self.fed_history
 
-    x, y, cwt = self.x_te, self.y_te, self.cwt_te
+    x, y, cwt, sf, resp = self.x_te, self.y_te, self.cwt_te, self.sf_te, self.resp_te
 
 
-    y_hat = trained_model.predict(x=[x, cwt], batch_size=B)
+    y_hat = trained_model.predict(x=[x, cwt, sf, resp], batch_size=B)
     # print(type(y), y.shape, np.squeeze(y).shape, type(y_hat), len(y_hat), y_hat[0].shape)
 
     ut.report(y, y_hat, self.arch, self.ml)

@@ -181,9 +181,9 @@ class CASE():
             end_p = gp_sess_ann_df['jstime'].iloc[k]
             label = gp_sess_ann_df[(gp_sess_ann_df['jstime'] <= end_p) & (gp_sess_ann_df['jstime'] > str_p)]
 
-            clss = CASE.round_interval_mean(label)
+            # clss = CASE.round_interval_mean(label)
             # clss = CASE.inc_dec_map(label)
-            # clss = CASE.mean_interval_mapping(label)
+            clss = CASE.mean_interval_mapping(label)
             # clss = CASE.kmeans_mapping(label)
             # print('class', clss)
 
@@ -251,8 +251,8 @@ class CASE():
         # self.ann_df['valence'] = CASE.zscore__norm(self.ann_df['valence'])
         # self.ann_df['arousal'] = CASE.zscore__norm(self.ann_df['arousal'])
 
-        self.ann_df['valence'] = CASE.kmeans(self.ann_df['valence'], 2)
-        self.ann_df['arousal'] = CASE.kmeans(self.ann_df['arousal'], 2)
+        # self.ann_df['valence'] = CASE.kmeans(self.ann_df['valence'], 2)
+        # self.ann_df['arousal'] = CASE.kmeans(self.ann_df['arousal'], 2)
 
         # print('arousal ', self.ann_df['arousal'].value_counts())
         # print('valence ', self.ann_df['valence'].value_counts())
