@@ -17,7 +17,7 @@ class DNN:
         l11 = Conv2D(4, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[1])
         l12 = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[2])
         # l13 = Conv1D(16, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[3])
-        l14 = Conv1D(8, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[4])
+        l14 = Conv1D(8, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[3])
 
         l10_flat = Flatten()(l10)
         l11_flat = Flatten()(l11)
