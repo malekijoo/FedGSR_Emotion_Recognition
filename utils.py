@@ -31,9 +31,9 @@ def report(y, y_hat, arch, ml):
 
     # print('yhat arousal shape', yhat_arousal.shape, yhat_valence.shape)
     y_ = np.squeeze(y[:, 0])
-    print(y_.shape)
-    print(y[:, 0])
-    print(y_)
+    # print(y_.shape)
+    # print(y[:, 0])
+    # print(y_)
     yhat_arousal = (y_hat[0] > 0.5001).astype(int)
     conf_mat_arousal = confusion_matrix(y_.tolist(), yhat_arousal.tolist())
     report_arousal = classification_report(y_.tolist(), yhat_arousal.tolist(), output_dict=True)
