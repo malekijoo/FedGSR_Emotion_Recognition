@@ -148,7 +148,8 @@ class EmoRec:
     metrics = {'arousal': 'accuracy',
                'valence': 'accuracy',}
 
-    model = Model(inputs=[input_0, input_1, input_2, input_4], outputs=[arousal, valence],)
+    model = Model(inputs=[input_0, input_1, input_2, input_4],
+                  outputs=[arousal, valence],)
     # plot_model(self.cnn, to_file='CNN.png', show_shapes=True, show_layer_names=True)
     model.compile(optimizer=self.optimizer,
                   loss=losses,
@@ -220,7 +221,7 @@ class EmoRec:
     if self.arch == 'CENT':
 
       self.x = np.expand_dims(self.x, axis=-1)
-      self.y = np.expand_dims(self.y, axis=-1)
+      # self.y = np.expand_dims(self.y, axis=-1)
       self.sf = np.expand_dims(self.sf, axis=-1)
       self.ss = np.expand_dims(self.ss, axis=-1)
       self.resp = np.expand_dims(self.resp, axis=-1)
@@ -231,10 +232,14 @@ class EmoRec:
       assert self.x.shape[0] == self.y.shape[0] == self.cwt.shape[0]
       assert self.sf.shape[0] == self.ss.shape[0] == self.resp.shape[0]
 
-      tr_te_rate = round(0.995 * self.x.shape[0])
+      # Training Testing samples Ratio
+      tr_te_rate = round(0.990 * self.x.shape[0])
+
+      # Training samples
       self.x_tr, self.y_tr, self.cwt_tr = self.x[:tr_te_rate], self.y[:tr_te_rate], self.cwt[:tr_te_rate]
       self.sf_tr, self.ss_tr, self.resp_tr = self.sf[:tr_te_rate], self.ss[:tr_te_rate], self.resp[:tr_te_rate]
 
+      # Testing samples
       self.x_te, self.y_te, self.cwt_te = self.x[tr_te_rate:], self.y[tr_te_rate:], self.cwt[tr_te_rate:]
       self.sf_te, self.ss_te, self.resp_te = self.sf[tr_te_rate:], self.ss[tr_te_rate:], self.resp[tr_te_rate:]
 
@@ -250,7 +255,7 @@ class EmoRec:
     elif self.arch == 'FED':
 
       test_user = self.Num_Usr-1 # the last user in the array of users will be used for testing phase.
-      self.x_te, self.y_te, self.cwt_te = self.stack_up(test_user)
+      self.x_te, self.y_te, self.cwt_te, self.sf_te, self.ss_te, self.resp_te = self.stack_up(test_user)
 
       weights_ = self.model.get_weights()
       temp_save_weight = []
@@ -305,18 +310,16 @@ class EmoRec:
     if self.arch == 'CENT':
       trained_model = self.model
       history = trained_model.history
+      print('cent ', trained_model)
 
     elif self.arch == 'FED':
       trained_model = self.global_model
       history = self.fed_history
 
-    x, y, cwt, sf, resp = self.x_te, self.y_te, self.cwt_te, self.sf_te, self.resp_te
 
+    y_hat = trained_model.predict(x=[self.x_te, self.cwt_te, self.sf_te, self.resp_te], batch_size=B)
 
-    y_hat = trained_model.predict(x=[x, cwt, sf, resp], batch_size=B)
-    # print(type(y), y.shape, np.squeeze(y).shape, type(y_hat), len(y_hat), y_hat[0].shape)
-
-    ut.report(y, y_hat, self.arch, self.ml)
+    ut.report(self.y_te, y_hat, self.arch, self.ml)
     ut.plots(history, self.arch, self.ml, name='main_model')
 
 

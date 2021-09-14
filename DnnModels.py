@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from tensorflow.keras.layers import Conv1D, Conv2D, Dropout
 from tensorflow.keras.layers import Flatten, Dense, Concatenate
-from tensorflow.keras.layers import LSTM, Bidirectional, MaxPooling2D
+from tensorflow.keras.layers import LSTM, Bidirectional, MaxPooling1D
 from tensorflow.keras.layers import ConvLSTM1D, ConvLSTM2D, BatchNormalization
 
 
@@ -25,16 +25,14 @@ class DNN:
         # l13_flat = Flatten()(l13)
         l14_flat = Flatten()(l14)
 
-        print(l10_flat.shape, l11_flat.shape, l12_flat.shape, l14_flat.shape)
-
         l1_concat = Concatenate()([l10_flat, l11_flat, l12_flat, l14_flat])
-        print(l1_concat.shape)
         l1_concat = tf.expand_dims(l1_concat, axis=-1)
+        l1_pooled = MaxPooling1D(8, strides=4, padding='same')(l1_concat)
 
-        l21 = Conv1D(512, kernel_size=7, padding='same', strides=1, activation='relu')(l1_concat)
-        l31 = Conv1D(256, kernel_size=3, padding='same', strides=1, activation='relu')(l21)
-        # print('first input ', l1.shape, l2.shape)
-
+        l21 = Conv1D(128, kernel_size=7, padding='same', strides=1, activation='relu')(l1_pooled)
+        l31 = Conv1D(64, kernel_size=3, padding='same', strides=1, activation='relu')(l21)
+        l2_pooled = MaxPooling1D(8, strides=4, padding='same')(l31)
+        l31 = Flatten()(l2_pooled)
 
         l4 = Dense(units=128, activation='relu')(l31)
         l5 = Dense(units=64, activation='relu')(l4)

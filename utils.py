@@ -30,33 +30,28 @@ def report(y, y_hat, arch, ml):
     # yhat_valence = np.argmax(y_hat[1], axis=1)
 
     # print('yhat arousal shape', yhat_arousal.shape, yhat_valence.shape)
-    y_ = np.squeeze(y[:, 0])
-    # print(y_.shape)
-    # print(y[:, 0])
-    # print(y_)
-    yhat_arousal = (y_hat[0] > 0.5001).astype(int)
-    conf_mat_arousal = confusion_matrix(y_.tolist(), yhat_arousal.tolist())
-    report_arousal = classification_report(y_.tolist(), yhat_arousal.tolist(), output_dict=True)
+    y_ = np.squeeze(y[:, 0]).tolist()
+    yhat_arousal = (y_hat[0] > 0.5001).astype(int).tolist()
+    conf_mat_arousal = confusion_matrix(y_, yhat_arousal)
+    report_arousal = classification_report(y_, yhat_arousal, output_dict=True)
     df_arousal = pd.DataFrame(report_arousal)
 
     print('\nReport of Arousal')
-    print(classification_report(y_.tolist(), yhat_arousal.tolist()))
+    print(classification_report(y_, yhat_arousal))
     print('\nConfusion Matrix')
     print(conf_mat_arousal)
 
 
     # Valence
-    y_ = np.squeeze(y[:, 1])
-    print(y_)
-    print(y[:, 1])
-    yhat_valence = (y_hat[1] > 0.5001).astype(int)
-    conf_mat_valence = confusion_matrix(y_.tolist(), yhat_valence.tolist())
-    report_valence = classification_report(y_.tolist(), yhat_valence.tolist(), output_dict=True)
+    y_ = np.squeeze(y[:, 1]).tolist()
+    yhat_valence = (y_hat[1] > 0.5001).astype(int).tolist()
+    conf_mat_valence = confusion_matrix(y_, yhat_valence)
+    report_valence = classification_report(y_, yhat_valence, output_dict=True)
     df_valence = pd.DataFrame.from_dict(report_valence)
 
 
     print('\nReport of Valence')
-    print(classification_report(y_.tolist(), yhat_valence.tolist()))
+    print(classification_report(y_, yhat_valence))
     print('\nConfusion Matrix')
     print(conf_mat_valence)
 
