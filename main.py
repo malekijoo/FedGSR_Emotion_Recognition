@@ -233,7 +233,7 @@ class EmoRec:
       assert self.sf.shape[0] == self.ss.shape[0] == self.resp.shape[0]
 
       # Training Testing samples Ratio
-      tr_te_rate = round(0.95 * self.x.shape[0])
+      tr_te_rate = round(0.90 * self.x.shape[0])
 
       # Training samples
       self.x_tr, self.y_tr, self.cwt_tr = self.x[:tr_te_rate], self.y[:tr_te_rate], self.cwt[:tr_te_rate]
