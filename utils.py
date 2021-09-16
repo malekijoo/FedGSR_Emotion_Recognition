@@ -25,13 +25,14 @@ elif 'nt' in os.name:
 
 def report(y, y_hat, arch, ml):
 
-    # Arousal
-    # yhat_arousal = np.argmax(y_hat[0], axis=1)
-    # yhat_valence = np.argmax(y_hat[1], axis=1)
+    # Arousal & Valence
+    yhat_arousal = np.argmax(y_hat[0], axis=1).tolist()
+    yhat_valence = np.argmax(y_hat[1], axis=1).tolist()
 
     # print('yhat arousal shape', yhat_arousal.shape, yhat_valence.shape)
     y_ = np.squeeze(y[:, 0]).tolist()
-    yhat_arousal = (y_hat[0] > 0.5001).astype(int).tolist()
+
+    # yhat_arousal = (y_hat[0] > 0.5001).astype(int).tolist()
     conf_mat_arousal = confusion_matrix(y_, yhat_arousal)
     report_arousal = classification_report(y_, yhat_arousal, output_dict=True)
     df_arousal = pd.DataFrame(report_arousal)
@@ -44,7 +45,7 @@ def report(y, y_hat, arch, ml):
 
     # Valence
     y_ = np.squeeze(y[:, 1]).tolist()
-    yhat_valence = (y_hat[1] > 0.5001).astype(int).tolist()
+    # yhat_valence = (y_hat[1] > 0.5001).astype(int).tolist()
     conf_mat_valence = confusion_matrix(y_, yhat_valence)
     report_valence = classification_report(y_, yhat_valence, output_dict=True)
     df_valence = pd.DataFrame.from_dict(report_valence)

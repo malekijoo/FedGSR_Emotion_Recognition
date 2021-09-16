@@ -28,7 +28,7 @@ class EmoRec:
   def __init__(self, kwargs):
 
     print('The DNN class is building ....')
-    cur_path = os.getcwd()
+    # cur_path = os.getcwd()
     if 'posix' in os.name:
       path = './GSR/CASE_dataset/interpolated/{}/'
     elif 'nt' in os.name:
@@ -125,24 +125,24 @@ class EmoRec:
       arousal, valence = dnn.unsequenced_LSTM()
 
     w1 = np.ones((2, 2))
-    w1[1, 0] = 6
-    w1[1, 1] = 6
+    w1[0, 0] = 4
+    w1[1, 1] = 2
 
     w2 = np.ones((2, 2))
-    w2[1, 0] = 6
-    w2[1, 1] = 6
+    w2[0, 0] = 2
+    w2[1, 1] = 4
 
-    # loss1 = partial(ut.weighted_categorical_crossentropy, weights=w1)
-    # loss2 = partial(ut.weighted_categorical_crossentropy, weights=w2)
-    #
-    # loss1.__name__ = 'loss1'
-    # loss2.__name__ = 'loss2'
-    #
-    # losses = {'arousal': loss1,
-    #           'valence': loss2,}
+    loss1 = partial(ut.weighted_categorical_crossentropy, weights=w1)
+    loss2 = partial(ut.weighted_categorical_crossentropy, weights=w2)
 
-    losses = {'arousal': 'binary_crossentropy',
-              'valence': 'binary_crossentropy',}
+    loss1.__name__ = 'loss1'
+    loss2.__name__ = 'loss2'
+
+    losses = {'arousal': loss1,
+              'valence': loss2,}
+
+    # losses = {'arousal': 'binary_crossentropy',
+    #           'valence': 'binary_crossentropy',}
 
 
     metrics = {'arousal': 'accuracy',
@@ -247,7 +247,7 @@ class EmoRec:
       # y_valence = to_categorical(self.y_tr[:, 0], 2)
       #
       self.model.fit(x=[self.x_tr, self.cwt_tr, self.sf_tr, self.resp_tr],
-                     y={"arousal": self.y_tr[:, 0], "valence": self.y_tr[:, 1]},
+                     y={"arousal": to_categorical(self.y_tr[:, 0], 2), "valence": to_categorical(self.y_tr[:, 1], 2)},
                      batch_size=B, epochs=GE, verbose=1, callbacks=[history])
 
 

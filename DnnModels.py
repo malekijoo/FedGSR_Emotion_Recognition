@@ -37,8 +37,12 @@ class DNN:
         l4 = Dense(units=128, activation='relu')(l31)
         l5 = Dense(units=64, activation='relu')(l4)
 
-        arousal = Dense(units=1, activation='sigmoid', name='arousal')(l5)
-        valence = Dense(units=1, activation='sigmoid', name='valence')(l5)
+        # arousal = Dense(units=1, activation='sigmoid', name='arousal')(l5)
+        # valence = Dense(units=1, activation='sigmoid', name='valence')(l5)
+
+        # Weighting Method
+        arousal = Dense(units=2, activation='softmax', name='arousal')(l5)
+        valence = Dense(units=2, activation='softmax', name='valence')(l5)
 
         return arousal, valence
 

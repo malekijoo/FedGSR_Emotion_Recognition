@@ -89,8 +89,8 @@ class CASE():
 
     @staticmethod
     def kmeans_mapping(label):
-        valence = label['k_valence'].mean()
-        arousal = label['k_arousal'].mean()
+        valence = label['valence'].mean()
+        arousal = label['arousal'].mean()
         # print('valence and arousal mean() ', valence, int(round(valence)), arousal, int(round(arousal)))
         return [int(round(arousal)), int(round(valence))]
 
