@@ -93,9 +93,9 @@ class EmoRec:
 
     if self.gsr_only_flag:
       input_0 = Input(shape=(1000, 1), name="input_0")
-      input_1 = Input(shape=(1000, 7, 1), name="input_1")  # continuous wavelet transform, cwt
+      input_1 = Input(shape=(1000, 8, 1), name="input_1")  # continuous wavelet transform, cwt
       input_2 = Input(shape=(51, 1), name="input_2")  # spectral flux, sf
-      # input_3 = Input(shape=(4, 1), name="input_3")  # statistic features, ss
+      input_3 = Input(shape=(4, 1), name="input_3")  # statistic features, ss
       input_4 = Input(shape=(1000, 4), name="input_4")  # responses, SCR_Peaks, SCR_RiseTime, SCR_Height, SCR_Recovery
 
       if 'LSTM' in self.ml:
@@ -108,7 +108,7 @@ class EmoRec:
 
 
 
-    dnn = DNN(self.ml, [input_0, input_1, input_2, input_4])
+    dnn = DNN(self.ml, [input_0, input_1, input_2,input_3, input_4])
 
 
     if self.ml == 'CNN':
@@ -148,7 +148,7 @@ class EmoRec:
     metrics = {'arousal': 'accuracy',
                'valence': 'accuracy',}
 
-    model = Model(inputs=[input_0, input_1, input_2, input_4],
+    model = Model(inputs=[input_0, input_1, input_2, input_3, input_4],
                   outputs=[arousal, valence],)
     # plot_model(self.cnn, to_file='CNN.png', show_shapes=True, show_layer_names=True)
     model.compile(optimizer=self.optimizer,
@@ -233,7 +233,10 @@ class EmoRec:
       assert self.sf.shape[0] == self.ss.shape[0] == self.resp.shape[0]
 
       # Training Testing samples Ratio
-      tr_te_rate = round(0.90 * self.x.shape[0])
+      tr_te_rate = round(0.9 * self.x.shape[0])
+
+      print('Number of Samples: ', self.x.shape[0], ' and Number of training Samples: ', tr_te_rate)
+      print('Number of testing Samples: ', self.x.shape[0] - tr_te_rate)
 
       # Training samples
       self.x_tr, self.y_tr, self.cwt_tr = self.x[:tr_te_rate], self.y[:tr_te_rate], self.cwt[:tr_te_rate]
@@ -246,7 +249,7 @@ class EmoRec:
       # y_arousal = to_categorical(self.y_tr[:, 0], 2)
       # y_valence = to_categorical(self.y_tr[:, 0], 2)
       #
-      self.model.fit(x=[self.x_tr, self.cwt_tr, self.sf_tr, self.resp_tr],
+      self.model.fit(x=[self.x_tr, self.cwt_tr, self.sf_tr, self.ss_tr, self.resp_tr],
                      y={"arousal": to_categorical(self.y_tr[:, 0], 2), "valence": to_categorical(self.y_tr[:, 1], 2)},
                      batch_size=B, epochs=GE, verbose=1, callbacks=[history])
 
@@ -288,7 +291,7 @@ class EmoRec:
 
         self.global_model.set_weights(self.get_average_weights(rand_models_weights_for_global_avg))
 
-        results = self.global_model.evaluate(x=[self.cwt_te, self.sf_te, self.ss_te, self.resp_te],
+        results = self.global_model.evaluate(x=[self.x_tr, self.cwt_te, self.sf_te, self.ss_te, self.resp_te],
                                              y={"arousal": self.y_te[:, 0],
                                                 "valence": self.y_te[:, 1]},
                                              batch_size=B)
@@ -317,7 +320,7 @@ class EmoRec:
       history = self.fed_history
 
 
-    y_hat = trained_model.predict(x=[self.x_te, self.cwt_te, self.sf_te, self.resp_te], batch_size=B)
+    y_hat = trained_model.predict(x=[self.x_te, self.cwt_te, self.sf_te, self.ss_te, self.resp_te], batch_size=B)
 
     ut.report(self.y_te, y_hat, self.arch, self.ml)
     ut.plots(history, self.arch, self.ml, name='main_model')

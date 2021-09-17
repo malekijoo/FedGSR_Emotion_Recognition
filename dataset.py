@@ -130,7 +130,7 @@ class CASE():
 
     @staticmethod
     def cwt(sample):
-        widths = np.arange(1, 8)
+        widths = np.arange(1, 9)
         return signal.cwt(sample, signal.ricker, widths=widths).T  # shape (20, len(sample)])
 
     @staticmethod
