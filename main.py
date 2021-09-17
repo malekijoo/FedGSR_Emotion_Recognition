@@ -125,12 +125,12 @@ class EmoRec:
       arousal, valence = dnn.unsequenced_LSTM()
 
     w1 = np.ones((2, 2))
-    w1[0, 0] = 4
+    w1[1, 0] = 2
     w1[1, 1] = 2
 
     w2 = np.ones((2, 2))
-    w2[0, 0] = 2
-    w2[1, 1] = 4
+    w2[1, 0] = 2
+    w2[1, 1] = 2
 
     loss1 = partial(ut.weighted_categorical_crossentropy, weights=w1)
     loss2 = partial(ut.weighted_categorical_crossentropy, weights=w2)
@@ -141,9 +141,9 @@ class EmoRec:
     losses = {'arousal': loss1,
               'valence': loss2,}
 
+
     # losses = {'arousal': 'binary_crossentropy',
     #           'valence': 'binary_crossentropy',}
-
 
     metrics = {'arousal': 'accuracy',
                'valence': 'accuracy',}

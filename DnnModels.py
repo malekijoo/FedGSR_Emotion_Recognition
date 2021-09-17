@@ -27,10 +27,10 @@ class DNN:
 
         l1_concat = Concatenate()([l10_flat, l11_flat, l12_flat, l14_flat])
         l1_concat = tf.expand_dims(l1_concat, axis=-1)
-        l1_pooled = MaxPooling1D(8, strides=4, padding='same')(l1_concat)
+        l1_pooled = MaxPooling1D(8, strides=1, padding='same')(l1_concat)
 
-        l21 = Conv1D(128, kernel_size=7, padding='same', strides=1, activation='relu')(l1_pooled)
-        l31 = Conv1D(64, kernel_size=3, padding='same', strides=1, activation='relu')(l21)
+        l21 = Conv1D(128, kernel_size=7, padding='same', strides=3, activation='relu')(l1_pooled)
+        l31 = Conv1D(64, kernel_size=3, padding='same', strides=2, activation='relu')(l21)
         l2_pooled = MaxPooling1D(8, strides=4, padding='same')(l31)
         l31 = Flatten()(l2_pooled)
 
