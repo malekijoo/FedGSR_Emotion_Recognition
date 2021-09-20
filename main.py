@@ -37,7 +37,6 @@ class EmoRec:
     # initializing values
     self.phy_dir = kwargs.get('phy_dir', path.format('physiological'))
     self.ann_dir = kwargs.get('ann_dir', path.format('annotations'))
-    print(self.phy_dir)
     self.arch = kwargs.get('architecture', 'CENT')
     self.ml = kwargs.get('model', 'CNN')
     self.decompose_flag = kwargs.get('decompose', False)
@@ -99,7 +98,7 @@ class EmoRec:
       input_4 = Input(shape=(1000, 4), name="input_4")  # responses, SCR_Peaks, SCR_RiseTime, SCR_Height, SCR_Recovery
 
       if 'LSTM' in self.ml:
-        input_1 = Input(shape=(1000, 7), name="input_1")
+        input_1 = Input(shape=(1000, 8), name="input_1")
 
 
     else:
@@ -108,8 +107,7 @@ class EmoRec:
 
 
 
-    dnn = DNN(self.ml, [input_0, input_1, input_2,input_3, input_4])
-
+    dnn = DNN(self.ml, [input_0, input_1, input_2, input_3, input_4])
 
     if self.ml == 'CNN':
       arousal, valence = dnn.CNN()
@@ -125,12 +123,18 @@ class EmoRec:
       arousal, valence = dnn.unsequenced_LSTM()
 
     w1 = np.ones((2, 2))
-    w1[1, 0] = 2
-    w1[1, 1] = 2
-
+    # w1[0, 0] = 4
+    # w1[0, 1] = 1
+    w1[1, 0] = 2.05
+    w1[1, 1] = 2.05
     w2 = np.ones((2, 2))
-    w2[1, 0] = 2
-    w2[1, 1] = 2
+    # w2[0, 0] = 2
+    # w2[0, 1] = 1
+    w2[1, 0] = 1.75
+    w2[1, 1] = 1.75
+
+    # print(w1)
+    # print(w2)
 
     loss1 = partial(ut.weighted_categorical_crossentropy, weights=w1)
     loss2 = partial(ut.weighted_categorical_crossentropy, weights=w2)
@@ -275,28 +279,30 @@ class EmoRec:
           self.model.set_weights(self.global_model.get_weights())
 
           x, y, cwt, sf, ss, resp = self.stack_up(ith) # the i-the user's data is extracting
-          # print('shapes after def stack_up() ', x.shape, y.shape, cwt.shape)
-          self.model.fit(x=[cwt, sf, ss, resp], y={"arousal": y[:, 0], "valence": y[:, 1]},
+          print('shapes after def stack_up() ', x.shape, y.shape, cwt.shape, sf.shape, ss.shape, resp.shape)
+
+          self.model.fit(x=[x, cwt, sf, ss, resp], y={"arousal": to_categorical(y[:, 0], 2),
+                                                      "valence": to_categorical(y[:, 1], 2)},
                          batch_size=B, epochs=LE, verbose=2)
 
-          temp_save_weight.append(self.model.get_weights())
-
-          self.model.set_weights(self.global_model.get_weights())
-
-        rand_models_weights_for_global_avg = np.random.choice(len(temp_save_weight),
-                                                              size=self.C,
-                                                              replace=False).tolist() # we can set p here to consider a weight for each mdoel
-
-        rand_models_weights_for_global_avg = [temp_save_weight[i] for i in rand_models_weights_for_global_avg]
-
-        self.global_model.set_weights(self.get_average_weights(rand_models_weights_for_global_avg))
-
-        results = self.global_model.evaluate(x=[self.x_tr, self.cwt_te, self.sf_te, self.ss_te, self.resp_te],
-                                             y={"arousal": self.y_te[:, 0],
-                                                "valence": self.y_te[:, 1]},
-                                             batch_size=B)
-        self.fed_history.append(results)
-        print('result is ', results)
+        #   temp_save_weight.append(self.model.get_weights())
+        #
+        #   self.model.set_weights(self.global_model.get_weights())
+        #
+        # rand_models_weights_for_global_avg = np.random.choice(len(temp_save_weight),
+        #                                                       size=self.C,
+        #                                                       replace=False).tolist() # we can set p here to consider a weight for each mdoel
+        #
+        # rand_models_weights_for_global_avg = [temp_save_weight[i] for i in rand_models_weights_for_global_avg]
+        #
+        # self.global_model.set_weights(self.get_average_weights(rand_models_weights_for_global_avg))
+        #
+        # results = self.global_model.evaluate(x=[self.x_tr, self.cwt_te, self.sf_te, self.ss_te, self.resp_te],
+        #                                      y={"arousal": self.y_te[:, 0],
+        #                                         "valence": self.y_te[:, 1]},
+        #                                      batch_size=B)
+        # self.fed_history.append(results)
+        # print('result is ', results)
 
   def test(self, B=32):
     """
@@ -320,7 +326,8 @@ class EmoRec:
       history = self.fed_history
 
 
-    y_hat = trained_model.predict(x=[self.x_te, self.cwt_te, self.sf_te, self.ss_te, self.resp_te], batch_size=B)
+    y_hat = trained_model.predict(x=[self.x_te, self.cwt_te, self.sf_te, self.ss_te, self.resp_te],
+                                  batch_size=B)
 
     ut.report(self.y_te, y_hat, self.arch, self.ml)
     ut.plots(history, self.arch, self.ml, name='main_model')
@@ -340,26 +347,26 @@ if __name__ == '__main__':
   #         'C': 2}
 
 
-  attr = {'gsr_only': True,
-          'decompose': True,
-          'minmax_norm': True,
-          'architecture': 'CENT',
-          'model': 'CNN',
-          }
-
-
   # attr = {'gsr_only': True,
   #         'decompose': True,
   #         'minmax_norm': True,
   #         'architecture': 'CENT',
   #         'model': 'CNN',
-  #         'C': 5,
-  #         'P': 8
   #         }
 
 
+  attr = {'gsr_only': True,
+          'decompose': True,
+          'minmax_norm': True,
+          'architecture': 'FED',
+          'model': 'CNN',
+          'C': 5,
+          'P': 10
+          }
+
+
   obj = EmoRec(attr)
-  obj.train(GE=10, LE=1)
+  obj.train(GE=5, LE=1)
   obj.test()
 
 

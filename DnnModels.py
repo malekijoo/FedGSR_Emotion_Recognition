@@ -2,7 +2,7 @@ import tensorflow as tf
 
 from tensorflow.keras.layers import Conv1D, Conv2D, Dropout
 from tensorflow.keras.layers import Flatten, Dense, Concatenate
-from tensorflow.keras.layers import LSTM, Bidirectional, MaxPooling1D
+from tensorflow.keras.layers import LSTM, Bidirectional, MaxPooling1D, GlobalMaxPooling1D
 from tensorflow.keras.layers import ConvLSTM1D, ConvLSTM2D, BatchNormalization
 
 
@@ -12,37 +12,48 @@ class DNN:
       self._input = input
 
     def CNN(self):
-
-        l10 = Conv1D(16, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[0])
-        l11 = Conv2D(8, kernel_size=5, padding='same', strides=2, activation='relu')(self._input[1])
-        l12 = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[2])
-        l13 = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[3])
-        l14 = Conv1D(8, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[3])
-
-        l10_flat = Flatten()(l10)
-        l11_flat = Flatten()(l11)
-        l12_flat = Flatten()(l12)
-        l13_flat = Flatten()(l13)
-        l14_flat = Flatten()(l14)
-
+        l10_flat = Flatten()(self._input[0])
+        l11_flat = Flatten()(self._input[1])
+        l12_flat = Flatten()(self._input[2])
+        l13_flat = Flatten()(self._input[3])
+        l14_flat = Flatten()(self._input[4])
         l1_concat = Concatenate()([l10_flat, l11_flat, l12_flat, l13_flat, l14_flat])
-        l1_concat = tf.expand_dims(l1_concat, axis=-1)
-        l1_pooled = MaxPooling1D(8, strides=1, padding='same')(l1_concat)
 
-        l21 = Conv1D(128, kernel_size=7, padding='same', strides=3, activation='relu')(l1_pooled)
-        l31 = Conv1D(64, kernel_size=3, padding='same', strides=2, activation='relu')(l21)
-        l2_pooled = MaxPooling1D(8, strides=4, padding='same')(l31)
-        l31 = Flatten()(l2_pooled)
+        l1_exp_dime = tf.expand_dims(l1_concat, axis=-1)
 
-        l4 = Dense(units=128, activation='relu')(l31)
-        l5 = Dense(units=64, activation='relu')(l4)
+
+        l1 = Conv1D(16, kernel_size=3, padding='same', strides=1, activation='relu')(l1_exp_dime)
+        l1_pooled = MaxPooling1D(4, strides=2, padding='same')(l1)
+
+        # l11 = Conv2D(8, kernel_size=5, padding='same', strides=2, activation='relu')(self._input[1])
+        # l12 = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[2])
+        # # l13 = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[3])
+        # l14 = Conv1D(8, kernel_size=3, padding='same', strides=1, activation='relu')(self._input[1])
+
+
+
+        # l1_pooled = MaxPooling1D(8, strides=4, padding='same')(l1_concat)
+
+        l2 = Conv1D(128, kernel_size=7, padding='same', strides=3, activation='relu')(l1_pooled)
+        l2_pooled = MaxPooling1D(4, strides=2, padding='same')(l2)
+
+        l3 = Conv1D(64, kernel_size=3, padding='same', strides=2, activation='relu')(l2_pooled)
+        l3_pooled = MaxPooling1D(4, strides=2, padding='same')(l3)
+
+        l4 = Conv1D(64, kernel_size=3, padding='same', strides=2, activation='relu')(l3_pooled)
+        l4_pooled = MaxPooling1D(4, strides=2, padding='same')(l4)
+
+        l4_flat = Flatten()(l4_pooled)
+
+        l5 = Dense(units=64, activation='relu')(l4_flat)
+        l6 = Dense(units=64, activation='relu')(l5)
 
         # arousal = Dense(units=1, activation='sigmoid', name='arousal')(l5)
         # valence = Dense(units=1, activation='sigmoid', name='valence')(l5)
 
         # Weighting Method
-        arousal = Dense(units=2, activation='softmax', name='arousal')(l5)
-        valence = Dense(units=2, activation='softmax', name='valence')(l5)
+        arousal = Dense(units=2, activation='softmax', name='arousal')(l6)
+        valence = Dense(units=2, activation='softmax', name='valence')(l6)
 
         return arousal, valence
 
