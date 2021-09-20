@@ -285,24 +285,24 @@ class EmoRec:
                                                       "valence": to_categorical(y[:, 1], 2)},
                          batch_size=B, epochs=LE, verbose=2)
 
-        #   temp_save_weight.append(self.model.get_weights())
-        #
-        #   self.model.set_weights(self.global_model.get_weights())
-        #
-        # rand_models_weights_for_global_avg = np.random.choice(len(temp_save_weight),
-        #                                                       size=self.C,
-        #                                                       replace=False).tolist() # we can set p here to consider a weight for each mdoel
-        #
-        # rand_models_weights_for_global_avg = [temp_save_weight[i] for i in rand_models_weights_for_global_avg]
-        #
-        # self.global_model.set_weights(self.get_average_weights(rand_models_weights_for_global_avg))
-        #
-        # results = self.global_model.evaluate(x=[self.x_tr, self.cwt_te, self.sf_te, self.ss_te, self.resp_te],
-        #                                      y={"arousal": self.y_te[:, 0],
-        #                                         "valence": self.y_te[:, 1]},
-        #                                      batch_size=B)
-        # self.fed_history.append(results)
-        # print('result is ', results)
+          temp_save_weight.append(self.model.get_weights())
+
+          self.model.set_weights(self.global_model.get_weights())
+
+        rand_models_weights_for_global_avg = np.random.choice(len(temp_save_weight),
+                                                              size=self.C,
+                                                              replace=False).tolist() # we can set p here to consider a weight for each mdoel
+
+        rand_models_weights_for_global_avg = [temp_save_weight[i] for i in rand_models_weights_for_global_avg]
+
+        self.global_model.set_weights(self.get_average_weights(rand_models_weights_for_global_avg))
+
+        results = self.global_model.evaluate(x=[self.x_tr, self.cwt_te, self.sf_te, self.ss_te, self.resp_te],
+                                             y={"arousal": self.y_te[:, 0],
+                                                "valence": self.y_te[:, 1]},
+                                             batch_size=B)
+        self.fed_history.append(results)
+        print('result is ', results)
 
   def test(self, B=32):
     """
