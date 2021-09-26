@@ -117,17 +117,17 @@ def stacked_LSTM(arch):
 
     inp = Input(shape=(13055,))
     x = Reshape((13055, 1), input_shape=(13055,))(inp)
-    x = LSTM(100, return_sequences=True)(x)
-    x = LSTM(100, return_sequences=True)(x)
+    x = LSTM(10, return_sequences=True)(x)
+    x = LSTM(100)(x)
+    x = Reshape((100, 1), input_shape=(100,))(x)
     x = Dropout(0.2)(x)
-    x = LSTM(100, return_sequences=True)(x)
+    x = LSTM(10, return_sequences=True)(x)
     x = Dropout(0.2)(x)
-    x = LSTM(1000, return_sequences=True)(x)
     x = Flatten()(x)
     x = Dense(units=64, activation='relu')(x)
-
     arousal = Dense(units=unit, activation=activ, name='arousal')(x)
     valence = Dense(units=unit, activation=activ, name='valence')(x)
+
     model = Model(inputs=inp, outputs={'arousal': arousal, 'valence': valence})
 
     return model

@@ -91,13 +91,13 @@ class EmoRec:
       w1 = np.ones((2, 2))
       # w1[0, 0] = 4
       # w1[0, 1] = 1
-      w1[1, 0] = 2.05
-      w1[1, 1] = 2.05
+      w1[1, 0] = 2.5
+      w1[1, 1] = 2.5
       w2 = np.ones((2, 2))
       # w2[0, 0] = 2
       # w2[0, 1] = 1
-      w2[1, 0] = 1.75
-      w2[1, 1] = 1.75
+      w2[0, 0] = 1.5
+      w2[0, 1] = 1.5
 
 
 
@@ -301,30 +301,31 @@ if __name__ == '__main__':
   print('Starting ... \n')
 
 
+  # attr = {'gsr_only': True,
+  #         'decompose': True,
+  #         'minmax_norm': True,
+  #         'architecture': 'CENT',
+  #         'model': 'CNN',
+  #         }
+  #
+  #
+  # obj = EmoRec(attr)
+  # obj.train_and_test(GE=5, LE=1)
+
+
+
   attr = {'gsr_only': True,
           'decompose': True,
           'minmax_norm': True,
           'architecture': 'CENT',
-          'model': 'CNN',
+          'model': 'stacked_LSTM',
           }
+
 
 
   obj = EmoRec(attr)
   obj.train_and_test(GE=5, LE=1)
 
-
-
-  # attr = {'gsr_only': True,
-  #         'decompose': True,
-  #         'minmax_norm': True,
-  #         'architecture': 'CENT',
-  #         'model': 'stacked_LSTM',
-  #         }
-  #
-  #
-  #
-  # obj = EmoRec(attr)
-  # obj.train_and_test(GE=5, LE=1)
   #
   #
   # attr = {'gsr_only': True,
