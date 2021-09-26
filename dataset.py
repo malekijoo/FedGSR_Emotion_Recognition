@@ -1,15 +1,18 @@
 import os
-from datetime import datetime
+import warnings
 
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-
 import kmeans1d
 import neurokit2 as nk
 import scipy.signal as signal
+
+from datetime import datetime
 from scipy import stats
-import warnings
+from sklearn.cluster import KMeans
+from tensorflow.keras.utils import to_categorical
+
 
 warnings.filterwarnings("ignore", category=np.VisibleDeprecationWarning)
 
@@ -91,6 +94,8 @@ class CASE():
     def kmeans_mapping(label):
         valence = label['valence'].mean()
         arousal = label['arousal'].mean()
+        # clusters_avg = label['clusters'].mean()
+        # return to_categorical(clusters_avg, 4)
         # print('valence and arousal mean() ', valence, int(round(valence)), arousal, int(round(arousal)))
         return [int(round(arousal)), int(round(valence))]
 
@@ -253,6 +258,9 @@ class CASE():
 
         self.ann_df['valence'] = CASE.kmeans(self.ann_df['valence'], 2)
         self.ann_df['arousal'] = CASE.kmeans(self.ann_df['arousal'], 2)
+        # k = KMeans(4)
+        # X = np.array([self.ann_df['arousal'].tolist(), self.ann_df['valence'].tolist()]).T
+        # self.ann_df['clusters'] = k.fit_predict(X=X)
 
         # print('arousal ', self.ann_df['arousal'].value_counts())
         # print('valence ', self.ann_df['valence'].value_counts())
@@ -263,13 +271,12 @@ class CASE():
 
     ###############################################################################################################
     ###############################################################################################################
-
     #                       CENT Process
-
     ###############################################################################################################
     ###############################################################################################################
 
     def cent_process(self):
+
         for usr in range(self.NumberOfUsers):
             # for usr in range(3):
             print('usr : ', usr)
@@ -352,11 +359,9 @@ class CASE():
 
             # self.fed_process()
 
-        # print(self.x.shape, self.x.shape, self.cwt.shape)
         np.save(wd+self.arch+self.deli+'x.npy', np.array(self.x))  # save
         np.save(wd+self.arch+self.deli+'y.npy', np.array(self.y))  # save
         np.save(wd+self.arch+self.deli+'cwt.npy', np.array(self.cwt))  # save
-        # print(self.sf.shape, self.ss.shape, self.resp.shape)
         np.save(wd+self.arch+self.deli+'sf.npy', np.array(self.sf))  # save
         np.save(wd+self.arch+self.deli+'ss.npy', np.array(self.ss))  # save
         np.save(wd+self.arch+self.deli+'resp.npy', np.array(self.resp))  # save

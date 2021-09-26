@@ -23,54 +23,42 @@ elif 'nt' in os.name:
 
 
 
-def report(y, y_hat, arch, ml):
+def report(y, y_hat, arch, ml):\
 
-    # Arousal & Valence
-    yhat_arousal = np.argmax(y_hat[0], axis=1).tolist()
-    yhat_valence = np.argmax(y_hat[1], axis=1).tolist()
-
-    # print('yhat arousal shape', yhat_arousal.shape, yhat_valence.shape)
-    y_ = np.squeeze(y[:, 0]).tolist()
-
-    # yhat_arousal = (y_hat[0] > 0.5001).astype(int).tolist()
-    conf_mat_arousal = confusion_matrix(y_, yhat_arousal)
-    report_arousal = classification_report(y_, yhat_arousal, output_dict=True)
-    df_arousal = pd.DataFrame(report_arousal)
-
-    print('\nReport of Arousal')
-    print(classification_report(y_, yhat_arousal))
-    print('\nConfusion Matrix')
-    print(conf_mat_arousal)
-
-
-    # Valence
-    y_ = np.squeeze(y[:, 1]).tolist()
-    # yhat_valence = (y_hat[1] > 0.5001).astype(int).tolist()
-    conf_mat_valence = confusion_matrix(y_, yhat_valence)
-    report_valence = classification_report(y_, yhat_valence, output_dict=True)
-    df_valence = pd.DataFrame.from_dict(report_valence)
-
-
-    print('\nReport of Valence')
-    print(classification_report(y_, yhat_valence))
-    print('\nConfusion Matrix')
-    print(conf_mat_valence)
-
-    # Saving
     now = datetime.now()
     date_time = now.strftime("%d.%m.%Y__%H.%M.%S")
 
     wd = cur_path + deli + 'report' + deli
-
     if not os.path.isdir(wd):
-      os.makedirs(wd, exist_ok=True)
-
+        os.makedirs(wd, exist_ok=True)
     save_path = wd + date_time + deli
     os.makedirs(save_path, exist_ok=True)
 
-    df_arousal.to_csv(save_path+'rep_arousal_{}_{}.csv'.format(arch, ml), index=False)
-    df_valence.to_csv(save_path+'rep_valence_{}_{}.csv'.format(arch, ml), index=False)
-    print('Arousal and Valence saved in the report directory with postfix date and time ,', date_time)
+    def save_and_print_fn(y_, yhat, name):
+
+        conf_mat_arousal = confusion_matrix(y_.tolist(), yhat.tolist())
+        report_arousal = classification_report(y_.tolist(), yhat.tolist(), output_dict=True)
+        df = pd.DataFrame(report_arousal)
+
+        print('\nReport of {}'.format(name))
+        print(classification_report(y_.tolist(), yhat.tolist()))
+        print('\nConfusion Matrix')
+        print(conf_mat_arousal)
+        # Saving
+
+        df.to_csv(save_path + 'rep_{}_{}_{}.csv'.format(name, arch, ml), index=False)
+        print('Arousal and Valence saved in the report directory with postfix date and time ,', date_time)
+
+    yhat_arousal = np.argmax(y_hat['arousal'], axis=1)
+    yhat_valence = np.argmax(y_hat['valence'], axis=1)
+    y_arousal = np.squeeze(y[:, 0])
+    y_valence = np.squeeze(y[:, 1])
+
+    print(yhat_arousal.shape, yhat_valence.shape, y_arousal.shape, y_valence.shape)
+
+    save_and_print_fn(y_arousal, yhat_arousal, 'arousal')
+    save_and_print_fn(y_valence, yhat_valence, 'valence')
+
 
 
 def plots(history, arch, ml, name):
@@ -85,7 +73,6 @@ def plots(history, arch, ml, name):
     save_path = wd + date_time + deli
     print('History plots are saved in : ', save_path)
     os.makedirs(save_path, exist_ok=True)
-
 
     if arch == 'CENT':
 
@@ -132,16 +119,28 @@ def plots(history, arch, ml, name):
       # lgnd.legendHandles[0]._legmarker.set_markersize(20)
 
 
+class weighted_categorical_crossentropy(tf.keras.losses.Loss):
 
-def weighted_categorical_crossentropy(y_true, y_pred, weights):
-    print(y_true.dtype, y_pred.dtype, weights.dtype)
-    nb_cl = len(weights)
-    final_mask = K.zeros_like(y_pred[:, 0])
-    y_pred_max = K.max(y_pred, axis=1)
-    y_pred_max = K.reshape(y_pred_max, (K.shape(y_pred)[0], 1))
-    y_pred_max_mat = K.cast(K.equal(y_pred, y_pred_max), K.floatx())
+    def __init__(self, weight, reduction=tf.keras.losses.Reduction.AUTO,
+                 name='weighted_categorical_crossentropy'):
+        super().__init__(reduction=reduction, name=name)
 
-    for c_p, c_t in product(range(nb_cl), range(nb_cl)):
-        final_mask += (weights[c_t, c_p] * y_pred_max_mat[:, c_p] * y_true[:, c_t])
-    return K.categorical_crossentropy(y_pred, y_true) * final_mask
+        self.weight = weight
+
+
+    def __call__(self, y_true, y_pred, **kwargs):
+
+        # print(y_true.dtype, y_pred.dtype, self.weight.dtype)
+        y_true = tf.cast(y_true, tf.float32)
+        # print(y_true.dtype, y_pred.dtype, self.weight.dtype)
+
+        nb_cl = len(self.weight)
+        final_mask = K.zeros_like(y_pred[:, 0])
+        y_pred_max = K.max(y_pred, axis=1)
+        y_pred_max = K.reshape(y_pred_max, (K.shape(y_pred)[0], 1))
+        y_pred_max_mat = K.cast(K.equal(y_pred, y_pred_max), K.floatx())
+
+        for c_p, c_t in product(range(nb_cl), range(nb_cl)):
+            final_mask += (self.weight[c_t, c_p] * y_pred_max_mat[:, c_p] * y_true[:, c_t])
+        return K.categorical_crossentropy(y_pred, y_true) * final_mask
 
