@@ -314,42 +314,42 @@ if __name__ == '__main__':
 
 
 
-  attr = {'gsr_only': True,
-          'decompose': True,
-          'minmax_norm': True,
-          'architecture': 'CENT',
-          'model': 'stacked_LSTM',
-          }
-
-
-
-  obj = EmoRec(attr)
-  obj.train_and_test(GE=5, LE=1)
-
-
-  attr = {'gsr_only': True,
-          'decompose': True,
-          'minmax_norm': True,
-          'architecture': 'CENT',
-          'model': 'autoencoder_LSTM',
-          }
-
-
-
-  obj = EmoRec(attr)
-  obj.train_and_test(GE=5, LE=1)
-
-
-
-
-  attr = {'gsr_only': True,
-          'decompose': True,
-          'minmax_norm': True,
-          'architecture': 'CENT',
-          'model': 'bi_LSTM',
-          }
-
-
-
-  obj = EmoRec(attr)
-  obj.train_and_test(GE=5, LE=1)
+  # attr = {'gsr_only': True,
+  #         'decompose': True,
+  #         'minmax_norm': True,
+  #         'architecture': 'CENT',
+  #         'model': 'stacked_LSTM',
+  #         }
+  #
+  #
+  #
+  # obj = EmoRec(attr)
+  # obj.train_and_test(GE=5, LE=1)
+  #
+  #
+  # attr = {'gsr_only': True,
+  #         'decompose': True,
+  #         'minmax_norm': True,
+  #         'architecture': 'CENT',
+  #         'model': 'autoencoder_LSTM',
+  #         }
+  #
+  #
+  #
+  # obj = EmoRec(attr)
+  # obj.train_and_test(GE=5, LE=1)
+  #
+  #
+  #
+  #
+  # attr = {'gsr_only': True,
+  #         'decompose': True,
+  #         'minmax_norm': True,
+  #         'architecture': 'CENT',
+  #         'model': 'bi_LSTM',
+  #         }
+  #
+  #
+  #
+  # obj = EmoRec(attr)
+  # obj.train_and_test(GE=5, LE=1)
