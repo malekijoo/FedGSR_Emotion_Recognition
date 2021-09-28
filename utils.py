@@ -36,21 +36,23 @@ def report(y, y_hat, arch, ml):\
 
     def save_and_print_fn(y_, yhat, name):
 
-        conf_mat_arousal = confusion_matrix(y_.tolist(), yhat.tolist())
+        conf_mat = confusion_matrix(y_.tolist(), yhat.tolist())
         report_arousal = classification_report(y_.tolist(), yhat.tolist(), output_dict=True)
         df = pd.DataFrame(report_arousal)
 
         print('\nReport of {}'.format(name))
         print(classification_report(y_.tolist(), yhat.tolist()))
         print('\nConfusion Matrix')
-        print(conf_mat_arousal)
-        # Saving
+        print(conf_mat)
 
+        # Saving
+        conf_mat_df = pd.DataFrame(conf_mat)
+        conf_mat_df.to_csv(save_path + 'confusion_mat_{}_{}_{}.csv'.format(name, arch, ml), index=False)
         df.to_csv(save_path + 'rep_{}_{}_{}.csv'.format(name, arch, ml), index=False)
         print('Arousal and Valence saved in the report directory with postfix date and time ,', date_time)
 
-    yhat_arousal = np.argmax(y_hat['arousal'], axis=1)
-    yhat_valence = np.argmax(y_hat['valence'], axis=1)
+    yhat_arousal = np.argmax(y_hat[0], axis=1)
+    yhat_valence = np.argmax(y_hat[1], axis=1)
     y_arousal = np.squeeze(y[:, 0])
     y_valence = np.squeeze(y[:, 1])
 
@@ -119,6 +121,7 @@ def plots(history, arch, ml, name):
       # lgnd.legendHandles[0]._legmarker.set_markersize(20)
 
 
+
 class weighted_categorical_crossentropy(tf.keras.losses.Loss):
 
     def __init__(self, weight, reduction=tf.keras.losses.Reduction.AUTO,
@@ -126,7 +129,6 @@ class weighted_categorical_crossentropy(tf.keras.losses.Loss):
         super().__init__(reduction=reduction, name=name)
 
         self.weight = weight
-
 
     def __call__(self, y_true, y_pred, **kwargs):
 
