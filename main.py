@@ -319,7 +319,7 @@ if __name__ == '__main__':
 
 
   obj = EmoRec(attr)
-  obj.train_and_test(EPOCH=1, LE=1)
+  obj.train_and_test(EPOCH=5, LE=1)
 
 
 
