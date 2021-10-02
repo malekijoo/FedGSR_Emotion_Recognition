@@ -15,6 +15,9 @@ from tensorflow.keras.optimizers import Adam, SGD
 from tensorflow.keras.layers import Input
 from tensorflow.keras.models import Model
 import matplotlib.pyplot as plt
+from sklearn.utils import class_weight
+
+
 
 
 np.random.seed(10)  # for reproducibility
@@ -67,27 +70,7 @@ class EmoRec:
 
     print('In this run, we use a {}-based model with {} architecture.'.format(self.ml, self.arch))
 
-
-
-
-
-    w1 = np.ones((2, 2))
-    w1[1, 0] = 2.6
-    w1[1, 1] = 2.6
-
-    w2 = np.ones((2, 2))
-    w2[1, 0] = 1.3
-    w2[1, 1] = 1.3
-
-    loss1 = ut.weighted_categorical_crossentropy(w1)
-    loss2 = ut.weighted_categorical_crossentropy(w2)
-
-    loss1.__name__ = 'loss1'
-    loss2.__name__ = 'loss2'
-
-    losses = {'arousal': loss1,
-              'valence': loss2,
-              }
+    t_shape = 3038
 
     ###############################################################################################################
     ###############################################################################################################
@@ -95,26 +78,30 @@ class EmoRec:
     ###############################################################################################################
     ###############################################################################################################
 
-
-
     if self.arch == 'CENT':
+
       print('\nThe number of all stacked samples are', self.x.shape[0])
-
       if self.ml == 'CNN':
-          self.model_cent = DNN.CNN()
-      elif self.ml == 'autoencoder_LSTM':
-          self.model_cent = DNN.AUTOENCODER_LSTM()
-      elif self.ml == 'stacked_LSTM':
-          self.model_cent = DNN.STACKED_LSTM()
-      elif self.ml == 'bi_LSTM':
-          self.model_cent = DNN.BI_LSTM()
+          self.model_cent = DNN.CNN(t_shape)
+      elif self.ml == 'AUTOENCODER_LSTM':
+          self.model_cent = DNN.AUTOENCODER_LSTM(t_shape)
+      elif self.ml == 'STACKED_LSTM':
+          self.model_cent = DNN.STACKED_LSTM(t_shape)
+      elif self.ml == 'BI_LSTM':
+          self.model_cent = DNN.BI_LSTM(t_shape)
 
+      self.model_cent_aro = self.model_cent
+      self.model_cent_val = self.model_cent
 
-      self.model_cent.compile(optimizer=self.optimizer,
-                              loss=losses,
-                              metrics=[tf.keras.metrics.CategoricalAccuracy()]
+      self.model_cent_aro.compile(optimizer=self.optimizer,
+                              loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
+                              metrics=[tf.keras.metrics.BinaryAccuracy()]
                               )
 
+      self.model_cent_val.compile(optimizer=self.optimizer,
+                              loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
+                              metrics=[tf.keras.metrics.BinaryAccuracy()]
+                              )
 
 
     ###############################################################################################################
@@ -130,30 +117,29 @@ class EmoRec:
       self.fed_history = []
 
       if self.ml == 'CNN':
-        fed_model = DNN.CNN(self.arch)
-      elif self.ml == 'autoencoder_LSTM':
-        fed_model = DNN.autoencoder_LSTM(self.arch)
-      elif self.ml == 'stacked_LSTM':
-        fed_model = DNN.stacked_LSTM(self.arch)
-      elif self.ml == 'bi_LSTM':
-        fed_model = DNN.bi_LSTM(self.arch)
+          fed_model = DNN.CNN(t_shape)
+      elif self.ml == 'AUTOENCODER_LSTM':
+          fed_model = DNN.AUTOENCODER_LSTM(t_shape)
+      elif self.ml == 'STACKED_LSTM':
+          fed_model = DNN.STACKED_LSTM(t_shape)
+      elif self.ml == 'BI_LSTM':
+          fed_model = DNN.BI_LSTM(t_shape)
 
 
       self.g_model = fed_model
       self.g_model.compile(optimizer=self.optimizer,
-                           loss=losses,
-                           metrics=[tf.keras.metrics.categorical_accuracy()]
-                            )
+                           loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
+                           metrics=[tf.keras.metrics.BinaryAccuracy()]
+                           )
 
       # if self.arch == 'CNN':
       #   fed_model = EmoRec.reset_weights(fed_model)
 
       self.l_model = fed_model
       self.l_model.compile(optimizer=self.optimizer,
-                           loss=losses,
-                           metrics=[tf.keras.metrics.categorical_accuracy()]
+                           loss=tf.keras.losses.BinaryCrossentropy(from_logits=False),
+                           metrics=[tf.keras.metrics.BinaryAccuracy()]
                            )
-
 
 
 
@@ -189,21 +175,22 @@ class EmoRec:
 
     # if 'LSTM' not in self.ml:
     # np.expand_dims(cwt, axis=-1)
-    x = np.concatenate([xx, cwt.reshape(cwt.shape[0], -1), sf, ss, resp.reshape(resp.shape[0], -1)], axis=1)
+    x = np.concatenate([xx, cwt.mean(axis=1), sf, ss,
+                        resp.reshape(resp.shape[0], -1)], axis=1)
 
     return x, y
 
-  @staticmethod
-  def reset_weights(model):
-    import tensorflow.keras.backend as K
-
-    for layer in model.layers:
-      if hasattr(layer, 'kernel_initializer'):
-        layer.kernel.initializer.run()
-      if hasattr(layer, 'bias_initializer'):
-        layer.bias.initializer.run()
-
-    return model
+  # @staticmethod
+  # def reset_weights(model):
+  #   import tensorflow.keras.backend as K
+  #
+  #   for layer in model.layers:
+  #     if hasattr(layer, 'kernel_initializer'):
+  #       layer.kernel.initializer.run()
+  #     if hasattr(layer, 'bias_initializer'):
+  #       layer.bias.initializer.run()
+  #
+  #   return model
 
 
   def train_and_test(self, B=32, EPOCH=5, LE=2):
@@ -218,39 +205,106 @@ class EmoRec:
     :return: None
 
     """
+
     print('\nTraining Phase is starting. It may take a while to train the model.')
 
+    history_aro = LossHistory()
+    history_val = LossHistory()
+
+    ###############################################################################################################
+    ###############################################################################################################
+    #                       CENT
+    ###############################################################################################################
+    ###############################################################################################################
 
     if self.arch == 'CENT':
+      print(self.cwt.mean(axis=2).shape, self.cwt.mean(axis=1).shape, self.cwt.mean(axis=0).shape)
+      x_dataset = np.concatenate([self.x, self.cwt.mean(axis=1), self.sf, self.ss,
+                                  self.resp.reshape(self.resp.shape[0], -1)], axis=1)
 
-      x_dataset = np.concatenate([self.x, self.cwt.reshape(self.cwt.shape[0], -1),
-                                  self.sf, self.ss, self.resp.reshape(self.resp.shape[0], -1)], axis=1)
-      print(x_dataset.shape)
+      n_samples = x_dataset.shape[0]
+      print('shapes', n_samples)
 
       # Training Testing samples Ratio
-      tr_te_rate = round(0.8 * x_dataset.shape[0])
-      print('Number of Samples: ', x_dataset.shape[0], ' and Number of training Samples: ', tr_te_rate)
-      print('Number of testing Samples: ', x_dataset.shape[0] - tr_te_rate)
-      # Training and Testing samples
-      x_train = x_dataset[: tr_te_rate]
-      y_train = self.y[: tr_te_rate]
-      x_test = x_dataset[tr_te_rate:]
-      y_test = self.y[tr_te_rate:]
+      # tr_te_rate_array = np.arange(0, 1, 0.1)
+
+      test_size = round(0.1 * x_dataset.shape[0])
+      print('test size ', test_size)
+
+
+
+      def cross_validation(x_train, y_train, x_test, y_test):
+
+          self.model_cent_aro.set_weights(self.model_cent.get_weights())
+          self.model_cent_val.set_weights(self.model_cent.get_weights())
+
+          class_weights = class_weight.compute_class_weight('balanced',
+                                                            np.unique(y_train[:, 0].flatten()),
+                                                            y_train[:, 0].flatten())
+
+          print('class weights aro: ', class_weights)
+
+          class_weights = class_weight.compute_class_weight('balanced',
+                                                            np.unique(y_train[:, 1].flatten()),
+                                                            y_train[:, 1].flatten())
+
+          print('class weights VAL: ', class_weights)
+
+          print('y train {}, test {}, and x train {}, test {} '.format(y_train.shape,
+                                                                       y_test.shape,
+                                                                       x_train.shape,
+                                                                       x_test.shape))
+
+          cls_weight ={0: 2.2,
+                       1: 0.95}
+          # Training
+          self.model_cent_aro.fit(x=x_train, y=y_train[:, 0],
+                                  batch_size=B, epochs=EPOCH, verbose=1,
+                                  class_weight=cls_weight, callbacks=[history_aro])
+
+          cls_weight ={0: 2.7,
+                       1: 0.85}
+
+          self.model_cent_val.fit(x=x_train, y=y_train[:, 1],
+                                  batch_size=B, epochs=EPOCH, verbose=1,
+                                  class_weight=cls_weight, callbacks=[history_val])
+
+
+
+          # Testing
+          y_hat_aro = self.model_cent_aro.predict(x=x_test,  batch_size=B)
+          y_hat_val = self.model_cent_val.predict(x=x_test,  batch_size=B)
+          y_hat = [y_hat_aro, y_hat_val]
+
+
+          print(np.array(y_hat).shape)
+          ut.report(y_test, y_hat, self.arch, self.ml,
+                    [self.model_cent_aro, self.model_cent_val],
+                    [history_aro, history_val])
+
+      k_fold = 10
+      x_test, x_train = np.split(x_dataset.copy(), [test_size], axis=0)
+      y_test, y_train = np.split(self.y.copy(), [test_size], axis=0)
+      print('indices of used test fold {}-{}'.format(0, test_size))
+      print('train and test shape', x_train.shape, x_test.shape)
+
+      for i in range(1, k_fold-1):
+
+        cross_validation(x_train, y_train, x_test, y_test)
+
+        print('indices of used test fold {}-{}'.format((i-1)*test_size, i*test_size))
+        print('train and test shape', x_train.shape, x_test.shape)
+        x_train[(i-1)*test_size:i*test_size], x_test = x_test, x_train[i*test_size:(i+1)*test_size].copy()
+        y_train[(i-1)*test_size:i*test_size], y_test = y_test, y_train[i*test_size:(i+1)*test_size].copy()
 
 
 
 
-      print('y train {},test {},   and x train {}, test {} '.format(y_train.shape, y_test.shape, x_train.shape, x_test.shape))
-
-      # Training
-      self.model_cent.fit(x=x_train, y=[to_categorical(y_train[:, 0], 2), to_categorical(y_train[:, 1], 2)],
-                          batch_size=B, epochs=EPOCH, verbose=1)
-
-      # Testing
-      y_hat = self.model_cent.predict(x=x_test,  batch_size=B)
-      print(np.array(y_hat).shape)
-      ut.report(y_test, y_hat, self.arch, self.ml)
-
+    ###############################################################################################################
+    ###############################################################################################################
+    #                       FED
+    ###############################################################################################################
+    ###############################################################################################################
 
     elif self.arch == 'FED':
 
@@ -259,49 +313,74 @@ class EmoRec:
 
       weights_ = self.l_model.get_weights()
 
-      for ge in range(EPOCH):
 
-        print('\nGlobal Epoch {} .'.format(ge))
+      def separ(name, cls, indx):
+          for ge in range(EPOCH):
 
-        self.l_model.set_weights(self.g_model.get_weights())
+            print('\nGlobal Epoch {} .'.format(ge))
 
-        selected_for_training = np.random.choice(range(self.Num_Usr - 1), size=self.P,
-                                                 replace=False).tolist()  # we can set p here to consider a weight for each mdoel
-        print(selected_for_training)
+            self.l_model.set_weights(self.g_model.get_weights())
 
-        temp_save_weight = []
-        tr_data, te_data = [], []
-        for ith in selected_for_training:
-          print(' {}-th user for training on local dataset.'.format(ith))
-          self.l_model.set_weights(self.g_model.get_weights())
+            selected_for_training = np.random.choice(range(self.Num_Usr - 1), size=self.P,
+                                                     replace=False).tolist()  # we can set p here to consider a weight for each mdoel
+            print(selected_for_training)
 
-          x, y = self.stack_up(ith)  # the i-the user's data is extracting
-          tr_data.append(x[:20]), te_data.append(y)
+            temp_l_models_weight_list = []
+            x_tribute, y_tribute = [], []
 
-          y_arousal = to_categorical(te_data[:, 0], 2)
-          y_valence = to_categorical(te_data[:, 1], 2)
+            for ith in selected_for_training:
+                print(' Training {}-th user on its local dataset.'.format(ith))
+                self.l_model.set_weights(self.g_model.get_weights())
 
-          self.l_model.fit(x=x, y=[y_arousal, y_valence],
-                           batch_size=B, epochs=LE, verbose=2)
+                x, y = self.stack_up(ith)  # the i-the user's data is extracting
 
-          temp_save_weight.append(self.l_model.get_weights())
+                x_tribute.append(x[:300])
+                y_tribute.append(y[:300])
 
-
-        rand_models_weights_for_global_avg = np.random.choice(len(temp_save_weight), size=self.C,
-                                                              replace=False).tolist()  # we can set p here to consider a weight for each mdoel
-
-        rand_models_weights_for_global_avg = [temp_save_weight[i] for i in rand_models_weights_for_global_avg]
-
-        self.g_model.set_weights(self.get_average_weights(rand_models_weights_for_global_avg))
+                # y_arousal = to_categorical(te_data[:, 0], 2)
+                # y_valence = to_categorical(te_data[:, 1], 2)
 
 
-        self.g_model.fit(x=x[:100], y={"arousal": y[:100, 0], "valence": y[:100, 1]},
-                         verbose=1, batch_size=B)
+                self.l_model.fit(x=x, y=y[:, indx],
+                                 batch_size=B, epochs=LE, verbose=0)
+
+                temp_l_models_weight_list.append(self.l_model.get_weights())
+
+            y_tribute = np.concatenate(y_tribute, axis=0)
+            x_tribute = np.concatenate(x_tribute, axis=0)
+            print('tribute shape ', x_tribute.shape, y_tribute.shape)
+
+            rand_models_weights_for_global_avg = np.random.choice(len(temp_l_models_weight_list),
+                                                                  size=self.C,
+                                                                  replace=False).tolist()  # we can set p here to consider a weight for each mdoel
+
+            rand_models_weights_for_global_avg = [temp_l_models_weight_list[i] for i in rand_models_weights_for_global_avg]
+
+            self.g_model.set_weights(self.get_average_weights(rand_models_weights_for_global_avg))
 
 
-        y_hat = self.g_model.predict(x=x_test,  # , self.cwt_te, self.sf_te, self.ss_te, self.resp_te],
-                                     batch_size=B)
-        ut.report(y_test, y_hat, self.arch, self.ml)
+            self.g_model.fit(x=x_tribute, y=y_tribute[:, indx], epochs=LE, verbose=1, batch_size=B, class_weight=cls)
+
+
+          y_hat = self.g_model.predict(x=x_test,  # , self.cwt_te, self.sf_te, self.ss_te, self.resp_te],
+                                       batch_size=B)
+
+          ut.fed_report(y_test[:, indx], y_hat, self.arch, self.ml, name)
+
+
+
+      # cls_weight = {0: 2.2,
+      #               1: 0.95}
+
+      cls_weight = {0: 2.,
+                    1: 1.}
+
+      separ('arousal', cls_weight, indx=0)
+
+      # cls_weight = {0: 2.7,
+      #               1: 0.85}
+
+      separ('valence', cls_weight, indx=1)
 
 
 if __name__ == '__main__':
@@ -311,55 +390,53 @@ if __name__ == '__main__':
   attr = {'gsr_only': True,
           'decompose': True,
           'minmax_norm': True,
-          'architecture': 'CENT',
+          'architecture': 'FED',
           'model': 'CNN',
-          'C': 4,
-          'P': 5,
+          'C': 15,
+          'P': 15,
           }
 
 
   obj = EmoRec(attr)
-  obj.train_and_test(EPOCH=5, LE=1)
+  obj.train_and_test(EPOCH=5, LE=2)
 
 
-
-  # attr = {'gsr_only': True,
-  #         'decompose': True,
-  #         'minmax_norm': True,
-  #         'architecture': 'CENT',
-  #         'model': 'stacked_LSTM',
-  #         }
-  #
-  #
-  #
-  # obj = EmoRec(attr)
-  # obj.train_and_test(EPOCH=1)
-  #
-  #
   #
   # attr = {'gsr_only': True,
   #         'decompose': True,
   #         'minmax_norm': True,
   #         'architecture': 'CENT',
-  #         'model': 'autoencoder_LSTM',
+  #         'model': 'AUTOENCODER_LSTM',
+  #         'C': 4,
+  #         'P': 5,
   #         }
   #
   #
-  #
   # obj = EmoRec(attr)
-  # obj.train_and_test(EPOCH=1)
-  #
-  #
-  #
+  # obj.train_and_test(EPOCH=5, LE=1)
   #
   # attr = {'gsr_only': True,
   #         'decompose': True,
   #         'minmax_norm': True,
   #         'architecture': 'CENT',
-  #         'model': 'bi_LSTM',
+  #         'model': 'BI_LSTM',
+  #         'C': 4,
+  #         'P': 5,
   #         }
   #
   #
+  # obj = EmoRec(attr)
+  # obj.train_and_test(EPOCH=5, LE=1)
+  #
+  # attr = {'gsr_only': True,
+  #         'decompose': True,
+  #         'minmax_norm': True,
+  #         'architecture': 'CENT',
+  #         'model': 'STACKED_LSTM',
+  #         'C': 4,
+  #         'P': 5,
+  #         }
+  #
   #
   # obj = EmoRec(attr)
-  # obj.train_and_test(EPOCH=1)
+  # obj.train_and_test(EPOCH=5, LE=1)

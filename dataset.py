@@ -94,10 +94,10 @@ class CASE():
     def kmeans_mapping(label):
         valence = label['valence'].mean()
         arousal = label['arousal'].mean()
-        # clusters_avg = label['clusters'].mean()
-        # return to_categorical(clusters_avg, 4)
-        # print('valence and arousal mean() ', valence, int(round(valence)), arousal, int(round(arousal)))
-        return [int(round(arousal)), int(round(valence))]
+        arousal_tre = -0.1
+        valence_tre = -0.1
+
+        return [int(round(arousal+arousal_tre)), int(round(valence+valence_tre))]
 
     @staticmethod
     def round_interval_mean(label):
@@ -148,7 +148,7 @@ class CASE():
     @staticmethod
     def stft(sample):
         fs = 10e3
-        f, t, z = signal.stft(sample, fs, nperseg=100)
+        f, t, z = signal.stft(sample, fs, nperseg=50)
         return f, t, z
 
 
@@ -188,9 +188,10 @@ class CASE():
 
             # clss = CASE.round_interval_mean(label)
             # clss = CASE.inc_dec_map(label)
-            # clss = CASE.mean_interval_mapping(label)
-            clss = CASE.kmeans_mapping(label)
+            clss = CASE.mean_interval_mapping(label)
+            # clss = CASE.kmeans_mapping(label)
             # print('class', clss)
+            # clss = label['clusters'].tolist()
 
             sample_df = gp_sess_phy_df[(gp_sess_phy_df['daqtime'] <= end_p) & (gp_sess_phy_df['daqtime'] > str_p)]
             sample = sample_df['gsr_phasic']
@@ -201,8 +202,8 @@ class CASE():
             # stft = CASE.extract_stft()
             sf = CASE.spectral_flux(sample)
             ss = CASE.spectral_statics(sample)
-            resp = [sample_df['peaks'].fillna(0).tolist(), sample_df['risetime'].fillna(0).tolist(),
-                    sample_df['height'].fillna(0).tolist(), sample_df['recovery'].fillna(0).tolist()]
+            resp = [sample_df['peaks'].fillna(0).tolist(), sample_df['risetime'].fillna(0).tolist()] #,
+                    # sample_df['height'].fillna(0).tolist(), sample_df['recovery'].fillna(0).tolist()]
 
 
             if sample.shape[0] == (interval_length*50): # interval_length * 50(each label cover 50 value in sample data)
@@ -243,21 +244,21 @@ class CASE():
 
         # normalization and decomposition are applied on each person's GSR signal
         # self.phy_df['gsr'] = CASE.minmax__norm(self.phy_df['gsr'])
-        self.phy_df['gsr'] = CASE.zscore__norm(self.phy_df['gsr'])
+        # self.phy_df['gsr'] = CASE.zscore__norm(self.phy_df['gsr'])
 
         temp_sig = CASE.decompose(self.phy_df['gsr'], only_phasic=False)
 
         self.phy_df['gsr_phasic'] = temp_sig['EDA_Phasic']
         self.phy_df['peaks'] = temp_sig['SCR_Peaks']
         self.phy_df['risetime'] = temp_sig['SCR_RiseTime']
-        self.phy_df['height'] = temp_sig['SCR_Height']
-        self.phy_df['recovery'] = temp_sig['SCR_Recovery']
+        # self.phy_df['height'] = temp_sig['SCR_Height']
+        # self.phy_df['recovery'] = temp_sig['SCR_Recovery']
 
         # self.ann_df['valence'] = CASE.zscore__norm(self.ann_df['valence'])
         # self.ann_df['arousal'] = CASE.zscore__norm(self.ann_df['arousal'])
 
-        self.ann_df['valence'] = CASE.kmeans(self.ann_df['valence'], 2)
-        self.ann_df['arousal'] = CASE.kmeans(self.ann_df['arousal'], 2)
+        # self.ann_df['valence'] = CASE.kmeans(self.ann_df['valence'], 2)
+        # self.ann_df['arousal'] = CASE.kmeans(self.ann_df['arousal'], 2)
         # k = KMeans(4)
         # X = np.array([self.ann_df['arousal'].tolist(), self.ann_df['valence'].tolist()]).T
         # self.ann_df['clusters'] = k.fit_predict(X=X)

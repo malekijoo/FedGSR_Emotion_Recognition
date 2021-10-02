@@ -8,31 +8,31 @@ from tensorflow.keras.layers import ConvLSTM2D, BatchNormalization  # , ConvLSTM
 
 
 
-def CNN():
+def CNN(Tensor_shape):
 
-    inp = Input(shape=(13055,), name='x')
+    inp = Input(shape=(Tensor_shape,), name='x')
 
-    x = Reshape((13055, 1), input_shape=(13055,))(inp)
+    x = Reshape((Tensor_shape, 1), input_shape=(Tensor_shape,))(inp)
     x = Conv1D(8, kernel_size=7, padding='same', strides=3, activation='relu')(x)
     x = MaxPooling1D(4, strides=2, padding='same')(x)
-    x = Conv1D(64, kernel_size=3, padding='same', strides=1, activation='relu')(x)
-    x = MaxPooling1D(4, strides=2, padding='same')(x)
-    x = Conv1D(64, kernel_size=3, padding='same', strides=1, activation='relu')(x)
+    # x = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(x)
+    # x = MaxPooling1D(4, strides=2, padding='same')(x)
+    x = Conv1D(32, kernel_size=3, padding='same', strides=1, activation='relu')(x)
     x = MaxPooling1D(4, strides=2, padding='same')(x)
     x = Flatten()(x)
-    x = Dense(units=128, activation='relu')(x)
+    x = Dense(units=64, activation='relu')(x)
     x = Dense(units=64, activation='relu')(x)
 
-    arousal = Dense(units=2, activation='softmax', name='arousal')(x)
-    valence = Dense(units=2, activation='softmax', name='valence')(x)
-    model = Model(inputs=inp, outputs=[arousal, valence])
+    arousal = Dense(units=1, activation='sigmoid', name='arousal')(x)
+    # valence = Dense(units=2, activation='softmax', name='valence')(x)
+    model = Model(inputs=inp, outputs=arousal)
 
     return model
 
-def STACKED_LSTM(arch):
+def STACKED_LSTM(Tensor_shape):
 
-    inp = Input(shape=(13055,))
-    x = Reshape((13055, 1), input_shape=(13055,))(inp)
+    inp = Input(shape=(Tensor_shape,))
+    x = Reshape((Tensor_shape, 1), input_shape=(Tensor_shape,))(inp)
     x = LSTM(10, return_sequences=True)(x)
     x = LSTM(100)(x)
     x = Reshape((100, 1), input_shape=(100,))(x)
@@ -42,17 +42,17 @@ def STACKED_LSTM(arch):
     x = Flatten()(x)
     x = Dense(units=64, activation='relu')(x)
 
-    arousal = Dense(units=2, activation='softmax', name='arousal')(x)
-    valence = Dense(units=2, activation='softmax', name='valence')(x)
-    model = Model(inputs=inp, outputs=[arousal, valence])
+    arousal = Dense(units=1, activation='sigmoid', name='arousal')(x)
+    # valence = Dense(units=2, activation='softmax', name='valence')(x)
+    model = Model(inputs=inp, outputs=arousal)
 
     return model
 
 
-def AUTOENCODER_LSTM(arch):
+def AUTOENCODER_LSTM(Tensor_shape):
 
-    inp = Input(shape=(13055,))
-    x = Reshape((13055, 1), input_shape=(13055,))(inp)
+    inp = Input(shape=(Tensor_shape,))
+    x = Reshape((Tensor_shape, 1), input_shape=(Tensor_shape,))(inp)
 
     x = LSTM(100, return_sequences=False)(x)
     x = RepeatVector(10)(x)
@@ -61,17 +61,17 @@ def AUTOENCODER_LSTM(arch):
     x = TimeDistributed(Dense(units=10, activation='relu'))(x)
     x = Flatten()(x)
 
-    arousal = Dense(units=2, activation='softmax', name='arousal')(x)
-    valence = Dense(units=2, activation='softmax', name='valence')(x)
-    model = Model(inputs=inp, outputs=[arousal, valence])
+    arousal = Dense(units=1, activation='sigmoid', name='arousal')(x)
+    # valence = Dense(units=2, activation='softmax', name='valence')(x)
+    model = Model(inputs=inp, outputs=arousal)
 
     return model
 
 
-def BI_LSTM():
+def BI_LSTM(Tensor_shape):
 
-    inp = Input(shape=(13055,))
-    x = Reshape((13055, 1), input_shape=(13055,))(inp)
+    inp = Input(shape=(Tensor_shape,))
+    x = Reshape((Tensor_shape, 1), input_shape=(Tensor_shape,))(inp)
     x = Bidirectional(LSTM(1000, return_sequences=False))(x)
     x = Dropout(0.2)(x)
     x = Bidirectional(LSTM(10, return_sequences=True))(x)
@@ -80,9 +80,9 @@ def BI_LSTM():
     x = Dense(units=64, activation='relu')(x)
     x = Dense(units=64, activation='relu')(x)
 
-    arousal = Dense(units=2, activation='softmax', name='arousal')(x)
-    valence = Dense(units=2, activation='softmax', name='valence')(x)
-    model = Model(inputs=inp, outputs=[arousal, valence])
+    arousal = Dense(units=1, activation='sigmoid', name='arousal')(x)
+    # valence = Dense(units=2, activation='softmax', name='valence')(x)
+    model = Model(inputs=inp, outputs=arousal)
 
     return model
 
@@ -91,16 +91,17 @@ def BI_LSTM():
 class LossHistory(tf.keras.callbacks.Callback):
 
     def on_train_begin(self, logs={}):
-        self.history = {'loss': [], 'arousal_loss': [], 'valence_loss': [],
+        self.history = {'loss': [], 'accuracy':[],
+                        'arousal_loss': [], 'valence_loss': [],
                         'arousal_accuracy': [], 'valence_accuracy': []
                         }
 
     def on_batch_end(self, batch, logs={}):
         self.history['loss'].append(logs.get('loss'))
+        self.history['accuracy'].append(logs.get('binary_accuracy'))
+        # self.history['arousal_loss'].append(logs.get('arousal_loss'))
+        # self.history['valence_loss'].append(logs.get('valence_loss'))
 
-        self.history['arousal_loss'].append(logs.get('arousal_loss'))
-        self.history['valence_loss'].append(logs.get('valence_loss'))
-
-        self.history['arousal_accuracy'].append(logs.get('arousal_accuracy'))
-        self.history['valence_accuracy'].append(logs.get('valence_accuracy'))
+        # self.history['arousal_accuracy'].append(logs.get('arousal_accuracy'))
+        # self.history['valence_accuracy'].append(logs.get('valence_accuracy'))
 
