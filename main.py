@@ -180,6 +180,14 @@ class EmoRec:
 
     return x, y
 
+
+  def stacked_up_list_for_test(self, list):
+
+    stacked_array = [self.stack_up(i) for i in list]
+    x = [stacked_array[i][0] for i in range(len(stacked_array))]
+    y = [stacked_array[i][1] for i in range(len(stacked_array))]
+
+    return np.concatenate(x, axis=0), np.concatenate(y, axis=0)
   # @staticmethod
   # def reset_weights(model):
   #   import tensorflow.keras.backend as K
@@ -308,20 +316,18 @@ class EmoRec:
 
     elif self.arch == 'FED':
 
-      test_user = self.Num_Usr - 1  # the last user in the array of users will be used for testing phase.
-      x_test, y_test = self.stack_up(test_user)
 
-      weights_ = self.l_model.get_weights()
+      def separ(name, cls, indx, test_data, tarin_list):
 
+          x_test, y_test = test_data
 
-      def separ(name, cls, indx):
           for ge in range(EPOCH):
 
             print('\nGlobal Epoch {} .'.format(ge))
 
             self.l_model.set_weights(self.g_model.get_weights())
 
-            selected_for_training = np.random.choice(range(self.Num_Usr - 1), size=self.P,
+            selected_for_training = np.random.choice(tarin_list, size=self.P,
                                                      replace=False).tolist()  # we can set p here to consider a weight for each mdoel
             print(selected_for_training)
 
@@ -368,19 +374,35 @@ class EmoRec:
           ut.fed_report(y_test[:, indx], y_hat, self.arch, self.ml, name)
 
 
+      users_list = np.arange(0, 30)
+      k_fold = 11
+      test_size = 3
+      fed_test_list, fed_train_list = np.split(users_list, [test_size], axis=0)
 
-      # cls_weight = {0: 2.2,
-      #               1: 0.95}
+      for i in range(1, k_fold):
 
-      cls_weight = {0: 2.,
-                    1: 1.}
+          # cls_weight = {0: 2.2,
+          #               1: 0.95}
+          print('Training Set (user ide)', fed_train_list)
+          print('Test Set (user ide)', fed_test_list)
 
-      separ('arousal', cls_weight, indx=0)
+          cls_weight = {0: 2.,
+                        1: 1.}
 
-      # cls_weight = {0: 2.7,
-      #               1: 0.85}
+          separ('arousal', cls_weight, 0,
+                self.stacked_up_list_for_test(fed_test_list),
+                fed_train_list)
 
-      separ('valence', cls_weight, indx=1)
+          cls_weight = {0: 2.,
+                        1: 1.}
+
+          separ('valence', cls_weight, 1,
+                self.stacked_up_list_for_test(fed_test_list),
+                fed_train_list)
+
+          if i < 10:
+            fed_test_list, fed_train_list[(i-1) * test_size: i * test_size] = fed_train_list[(i-1) * test_size:(i) * test_size].copy(), fed_test_list
+
 
 
 if __name__ == '__main__':
@@ -393,12 +415,12 @@ if __name__ == '__main__':
           'architecture': 'FED',
           'model': 'CNN',
           'C': 15,
-          'P': 15,
+          'P': 25,
           }
 
 
   obj = EmoRec(attr)
-  obj.train_and_test(EPOCH=5, LE=2)
+  obj.train_and_test(EPOCH=5, LE=3)
 
 
   #
